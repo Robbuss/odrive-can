@@ -28,3 +28,11 @@ class Joint(ABC):
     def disarm(self):
         """Disarm or shutdown the joint (e.g., send IDLE, close bus)."""
         pass
+
+    @abstractmethod
+    async def calibrate(self, state: int = 3, save_config: bool = False) -> dict:
+        """
+        Run calibration sequence (async). Uses CANSimple protocol.
+        Returns result dict.
+        """
+        pass
