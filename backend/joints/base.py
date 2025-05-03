@@ -6,7 +6,7 @@ class Joint(ABC):
     """
     @abstractmethod
     def initialize(self):
-        """Prepare the joint (e.g., arm motors, zero sensors)."""
+        """Prepare/arm the joint (e.g., open bus, engage motors)."""
         pass
 
     @abstractmethod
@@ -21,5 +21,10 @@ class Joint(ABC):
 
     @abstractmethod
     def status(self) -> dict:
-        """Return current status (e.g., position, moving flag)."""
+        """Return current status (e.g., position, running)."""
+        pass
+
+    @abstractmethod
+    def disarm(self):
+        """Disarm or shutdown the joint (e.g., send IDLE, close bus)."""
         pass

@@ -73,5 +73,9 @@ class ODriveCAN(CANBus):
         return {"position": pos, "running": self.running}
 
     def shutdown(self):
+        # send IDLE state first
         self.send_state(IDLE)
-        self.shutdown()
+        # wait for confirmation (optional)
+        self._wait_state(IDLE, timeout=1.0)
+        # then close the socket
+        super().shutdown()
