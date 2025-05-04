@@ -1,15 +1,10 @@
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 from backend.can_bus import CANBus
-from backend.odrive.can_simple import ODriveCAN
-from backend.calibration.odrive_calibrator import ODriveCalibrator
-from backend.joints.odrive import ODriveJoint
+from backend.joints.odrive.transport import ODriveCAN
+from backend.joints.odrive.joint import ODriveJoint
 
-from pydantic import BaseModel
-from typing import Any, Dict, Optional
-from pathlib import Path
-import json
+from typing import Any, Dict
 
-from backend.configurator.odrive_configurator import ODriveConfigurator
 
 router = APIRouter(prefix="/joints", tags=["joints"])
 
@@ -102,69 +97,27 @@ async def calibrate_joint(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-class ConfigRequest(BaseModel):
-    endpoint_data: Dict[str, Any]
-    config:        Dict[str, Any]
-    save_config:   bool = False
 
-
-# Base path to your configurator folder
-BASE_BACKEND = Path(__file__).resolve().parent.parent.parent
-CONFIG_DIR   = BASE_BACKEND / "configurator"
-
-@router.post("/{joint_name}/config")
+@router.post("/{joint_name}/configure")
 async def configure_joint(
     joint_name: str,
-    endpoints_file: str = Query(..., description="Name of flat_endpoints JSON file in backend/configurator"),
-    config_file: Optional[str] = Query(None, description="Name of your config JSON file in backend/configurator"),
-    save_config: bool = Query(False, description="If true, save to NVM and reboot")
+    config: Dict[str, Any],
+    save_config: bool = False
 ):
     """
-    Restore a set of endpoint values over CAN:
-    - endpoints_file: e.g. 'flat_endpoints.json'
-    - config_file:    e.g. 'my_config.json' (optional)
-    - save_config:    whether to write to NVM & reboot
+    Configure the given joint.
+
+    Query params:
+      - endpoint_data: data to send to the endpoint
+      - config: configuration to save
+      - save_config: if true, save to NVM & reboot
     """
     joint = joints.get(joint_name)
     if not joint:
         raise HTTPException(404, "Unknown joint")
 
-    # disarm if already armed
-    if getattr(joint, "_initialized", False):
-        joint.disarm()
-        setattr(joint, "_initialized", False)
-
-    # build file paths (prevent directory escape)
-    if "/" in endpoints_file or "\\" in endpoints_file:
-        raise HTTPException(400, "Invalid endpoints_file name")
-    ep_path = CONFIG_DIR / endpoints_file
-    if not ep_path.is_file():
-        raise HTTPException(400, f"Endpoints file not found: {endpoints_file}")
-
-    cfg_path = None
-    if config_file:
-        if "/" in config_file or "\\" in config_file:
-            raise HTTPException(400, "Invalid config_file name")
-        cfg_path = CONFIG_DIR / config_file
-        if not cfg_path.is_file():
-            raise HTTPException(400, f"Config file not found: {config_file}")
-
-    # load JSON
     try:
-        endpoints_data = json.loads(ep_path.read_text())
-        config_data    = json.loads(cfg_path.read_text()) if cfg_path else {}
-    except Exception as e:
-        raise HTTPException(500, f"Error reading JSON: {e}")
-
-    # invoke configurator
-    configurator = ODriveConfigurator(
-        can_bus      = can_bus,
-        node_id      = joint.odrive.node,
-        endpoint_data= endpoints_data
-    )
-
-    try:
-        result = await configurator.restore(config_data, save_config)
+        result = await joint.configure(config, save_config)
         return result
     except Exception as e:
-        raise HTTPException(500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e))

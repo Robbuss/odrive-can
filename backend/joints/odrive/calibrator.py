@@ -2,8 +2,8 @@ import asyncio
 import struct
 
 from backend.can_bus import CANBus
-from backend.odrive.can_simple import IDLE
-from backend.calibration.can_simple_node import CanSimpleNode, REBOOT_ACTION_SAVE
+from backend.joints.odrive.transport import IDLE
+from backend.joints.odrive.node import CanSimpleNode, REBOOT_ACTION_SAVE
 
 class ODriveCalibrator:
     """

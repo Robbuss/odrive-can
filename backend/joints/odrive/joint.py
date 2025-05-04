@@ -1,7 +1,7 @@
 import struct, time, threading
 from backend.joints.base import Joint
-from backend.odrive import ODriveCAN, CLOSED_LOOP, IDLE, _SET_INPUT_POS
-from backend.calibration.odrive_calibrator import ODriveCalibrator
+from backend.joints.odrive.transport import ODriveCAN, CLOSED_LOOP, IDLE, _SET_INPUT_POS
+from backend.joints.odrive.calibrator import ODriveCalibrator
 
 class ODriveJoint(Joint):
     def __init__(self, odrive: ODriveCAN):

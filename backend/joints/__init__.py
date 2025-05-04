@@ -1,4 +1,4 @@
 from .base import Joint
-from .odrive import ODriveJoint
+from .odrive.joint import ODriveJoint
 
 __all__ = ["Joint", "ODriveJoint"]

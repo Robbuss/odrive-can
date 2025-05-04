@@ -3,7 +3,7 @@ import struct
 import math
 
 from backend.can_bus import CANBus
-from backend.calibration.can_simple_node import CanSimpleNode, REBOOT_ACTION_SAVE
+from backend.joints.odrive.node import CanSimpleNode, REBOOT_ACTION_SAVE
 
 # SDO opcodes and formats
 _OPCODE_READ  = 0x00
