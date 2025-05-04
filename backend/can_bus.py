@@ -29,3 +29,5 @@ class CANBus:
     def shutdown(self):
         if self.bus:
             self.bus.shutdown()
+            # drop the reference so future .run() will re-open
+            self.bus = None
