@@ -101,23 +101,17 @@ async def calibrate_joint(
 @router.post("/{joint_name}/configure")
 async def configure_joint(
     joint_name: str,
-    config: Dict[str, Any],
-    save_config: bool = False
+    save_config: bool = Query(False, description="If true, save to NVM & reboot")
 ):
     """
-    Configure the given joint.
-
-    Query params:
-      - endpoint_data: data to send to the endpoint
-      - config: configuration to save
-      - save_config: if true, save to NVM & reboot
+    Trigger the on-disk config/config.json → flat_endpoints.json restore flow.
     """
     joint = joints.get(joint_name)
     if not joint:
         raise HTTPException(404, "Unknown joint")
 
     try:
-        result = await joint.configure(config, save_config)
+        result = await joint.configure(save_config=save_config)
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(500, detail=str(e))

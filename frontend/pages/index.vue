@@ -41,6 +41,20 @@
         </template>
       </UCard>
     </div>
+    <UCard>
+      <template #header>CAN Bus Log</template>
+      <div class="p-2 h-40 overflow-auto font-mono text-xs bg-gray-50">
+        <div v-for="(e, i) in canLog" :key="i">
+          {{ e.ts.toFixed(3) }} → {{ e.id }} : {{ e.data }}
+        </div>
+      </div>
+      <template #footer>
+          <div class="flex justify-end p-4 pt-0 space-x-2">
+            <UButton @click="stopCanLog" variant="outline">Stop</UButton>
+            <UButton color="warning" @click="startCanLog">Start</UButton>
+          </div>
+        </template>
+    </UCard>
   </UContainer>
 </template>
 
@@ -53,6 +67,22 @@ const freq = ref(100)
 const calState = ref(3)
 const saveConfig = ref(false)
 let ws: WebSocket
+let wsLog: WebSocket
+interface CanEntry { ts: number; id: string; data: string }
+const canLog = ref<CanEntry[]>([])
+
+function startCanLog() {
+  wsLog = new WebSocket("ws://localhost:8000/ws/canlog")
+  wsLog.onmessage = ev => {
+    const entry: CanEntry = JSON.parse(ev.data)
+    canLog.value.unshift(entry)
+    if (canLog.value.length > 200) canLog.value.pop()   // cap length
+  }
+}
+
+function stopCanLog() {
+  wsLog.close()
+}
 
 onMounted(() => {
   ws = new WebSocket('ws://127.0.0.1:8000/ws/joint/joint1')
@@ -61,10 +91,12 @@ onMounted(() => {
     position.value = data.position ?? position.value
     running.value = data.running
   }
+
 })
 
 onUnmounted(() => {
   ws.close()
+  stopCanLog()
 })
 
 async function move() {
@@ -85,14 +117,10 @@ async function calibrate() {
   console.log('Calibrate:', await res.json())
 }
 
-const endpointsFile = ref('flat_endpoints.json')
-const configFile    = ref('config.json')
 async function configure() {
   try {
-    const url = `/api/joints/joint1/config`
-      + `?endpoints_file=${encodeURIComponent(endpointsFile.value)}`
-      + `&config_file=${encodeURIComponent(configFile.value)}`
-      + `&save_config=${saveConfig.value}`
+    const url = `/api/joints/joint1/configure`
+
     const res = await fetch(url, { method: 'POST' })
     const data = await res.json()
     console.log('Configure result:', data)

@@ -1,6 +1,8 @@
 import asyncio
 import struct
 import math
+import json
+from pathlib import Path
 
 from backend.can_bus import CANBus
 from backend.joints.odrive.node import CanSimpleNode, REBOOT_ACTION_SAVE
@@ -21,111 +23,124 @@ _FORMAT_LOOKUP = {
     'float':  'f',
 }
 
+
 class ODriveConfigurator:
     """
-    Encapsulates reading/writing arbitrary endpoints
-    via CANSimple SDO (flat_endpoints.json) protocol.
+    Reads flat_endpoints.json & config.json from the local `config/` folder,
+    then applies them via CANSimple SDO.
     """
 
-    def __init__(self,
-                 can_bus: CANBus,
-                 node_id: int,
-                 endpoint_data: dict):
-        self.can_bus      = can_bus
-        self.node_id      = node_id
-        self.endpoint_data = endpoint_data
+    def __init__(self, can_bus: CANBus, node_id: int):
+        self.can_bus = can_bus
+        self.node_id = node_id
+
+        # locate our config dir, relative to this file
+        cfg_dir = Path(__file__).parent / "config"
+        if not cfg_dir.is_dir():
+            raise FileNotFoundError(f"Config folder not found: {cfg_dir}")
+
+        # load the endpoint schema
+        endpoints_path = cfg_dir / "flat_endpoints.json"
+        if not endpoints_path.is_file():
+            raise FileNotFoundError(f"Missing {endpoints_path.name}")
+        self.endpoint_data = json.loads(endpoints_path.read_text())
+
+        # load the actual config to write
+        config_path = cfg_dir / "config.json"
+        if not config_path.is_file():
+            raise FileNotFoundError(f"Missing {config_path.name}")
+        self.config_data = json.loads(config_path.read_text())
 
     async def version_check(self):
         """
-        Verify the endpoints JSON matches the HW & FW version on the device.
+        Make sure the flat_endpoints.json matches the ODrive's HW/FW.
         """
-        # ensure bus open
         if not self.can_bus.bus:
             self.can_bus.open()
 
-        # send read-version
+        # ask for version
         arb = (self.node_id << 5) | _GET_VERSION
-        # empty payload
         self.can_bus.send(arb, b'')
-        # await reply
         msg = await CanSimpleNode(self.can_bus.bus, self.node_id).await_msg(_GET_VERSION)
 
         # unpack
-        _, product_line, hw_v, hw_variant, fw_maj, fw_min, fw_rev, _ = struct.unpack('<BBBBBBBB', msg.data)
-        hw_str = f"{product_line}.{hw_v}.{hw_variant}"
+        _, pl, hw_v, hw_var, fw_maj, fw_min, fw_rev, _ = struct.unpack('<BBBBBBBB', msg.data)
+        hw_str = f"{pl}.{hw_v}.{hw_var}"
         fw_str = f"{fw_maj}.{fw_min}.{fw_rev}"
 
-        # compare
         if self.endpoint_data['hw_version'] != hw_str:
             raise RuntimeError(f"HW mismatch: {self.endpoint_data['hw_version']} != {hw_str}")
         if self.endpoint_data['fw_version'] != fw_str:
             raise RuntimeError(f"FW mismatch: {self.endpoint_data['fw_version']} != {fw_str}")
 
-async def write_and_verify(self, node: CanSimpleNode, path: str, val):
-    info = self.endpoint_data['endpoints'][path]
-    eid  = info['id']
-    typ  = info['type']
-    fmt  = _FORMAT_LOOKUP[typ]
+    async def write_and_verify(self, node: CanSimpleNode, path: str, val):
+        """
+        Write one endpoint and immediately read it back to verify.
+        """
+        info = self.endpoint_data['endpoints'][path]
+        eid  = info['id']
+        typ  = info['type']
+        fmt  = _FORMAT_LOOKUP[typ]
 
-    arb = (self.node_id << 5) | _RX_SDO
-    payload = struct.pack(f'<BHB{fmt}', _OPCODE_WRITE, eid, 0, val)
-    self.can_bus.send(arb, payload)
+        arb = (self.node_id << 5) | _RX_SDO
+        # pack the write SDO
+        payload = struct.pack(f'<BHB{fmt}', _OPCODE_WRITE, eid, 0, val)
+        self.can_bus.send(arb, payload)
 
-    await asyncio.sleep(0.01)
-    node.flush_rx()
+        # allow the device to ack then flush
+        await asyncio.sleep(0.01)
+        node.flush_rx()
 
-    payload = struct.pack('<BHB', _OPCODE_READ, eid, 0)
-    self.can_bus.send(arb, payload)
+        # now read it back
+        payload = struct.pack('<BHB', _OPCODE_READ, eid, 0)
+        self.can_bus.send(arb, payload)
 
-    msg = await node.await_msg(_TX_SDO)
-    _, _, _, ret = struct.unpack_from(f'<BHB{fmt}', msg.data)
+        msg = await node.await_msg(_TX_SDO)
+        _, _, _, ret = struct.unpack_from(f'<BHB{fmt}', msg.data)
 
-    # compare, pruning floats to 32‐bit first
-    if typ == 'float':
-        # prune to 32-bit float
-        val_pruned = struct.unpack('<f', struct.pack('<f', val))[0]
-        if math.isnan(val_pruned):
-            ok = math.isnan(ret)
+        # floats need 32-bit pruning
+        if typ == 'float':
+            val32 = struct.unpack('<f', struct.pack('<f', val))[0]
+            if math.isnan(val32):
+                ok = math.isnan(ret)
+            else:
+                ok = (ret == val32)
+            if not ok:
+                raise RuntimeError(f"Write failed for {path}: got {ret}, expected {val32}")
         else:
-            ok = (ret == val_pruned)
-        if not ok:
-            raise RuntimeError(f"Write failed for {path}: {ret} != {val_pruned}")
-    else:
-        if ret != val:
-            raise RuntimeError(f"Write failed for {path}: {ret} != {val}")
+            if ret != val:
+                raise RuntimeError(f"Write failed for {path}: got {ret}, expected {val}")
 
-    async def restore(self,
-                      config: dict,
-                      save_config: bool = False) -> dict:
+    async def restore(self, save_config: bool = False) -> dict:
         """
-        Write out all values in `config` (path->value) and optionally reboot.
+        Write **all** entries from config.json and optionally reboot.
         """
-        # ensure bus open
+        # ensure CAN bus is open
         if not self.can_bus.bus:
             self.can_bus.open()
 
-        # use blocking-polling CanSimpleNode
+        written: dict[str, Any] = {}
         node = CanSimpleNode(self.can_bus.bus, self.node_id)
-        # no notifier threads, so just `with`
         with node:
-            # check versions
+            # sanity‐check the JSON schema
             await self.version_check()
 
-            # flush old messages
+            # drop any old frames
             await asyncio.sleep(0.1)
             node.flush_rx()
 
-            # walk through config dict
-            for path, val in config.items():
+            # write them all and record each value
+            for path, val in self.config_data.items():
                 if path not in self.endpoint_data['endpoints']:
                     raise KeyError(f"Unknown endpoint path: {path}")
                 await self.write_and_verify(node, path, val)
+                written[path] = val
 
-            # final optional save
+            # finally save & reboot if asked
             if save_config:
                 node.reboot_msg(REBOOT_ACTION_SAVE)
 
         return {
-            "status":       "restored",
-            "written_keys": list(config.keys())
+            "status":  "restored",
+            "written": written
         }

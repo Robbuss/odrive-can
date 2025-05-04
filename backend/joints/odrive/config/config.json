@@ -33,8 +33,6 @@
     "axis0.config.load_encoder": 13,
     "axis0.config.commutation_encoder": 13,
 
-    "axis0.encoder.config.cpr": 4096,
-  
     "axis0.controller.config.control_mode": 2,
     "axis0.controller.config.input_mode": 5,
     "axis0.controller.config.vel_limit": 10,
