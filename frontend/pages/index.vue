@@ -1,7 +1,7 @@
 <template>
   <UContainer class="py-6">
     <div class="max-w-md mx-auto space-y-6">
-      <!-- Controls: delta/freq form and global arm/disarm -->
+      <!-- Controls: delta/speed form and global arm/disarm -->
       <div class="flex flex-col space-y-4">
 
         <div class="flex justify-center space-x-4">
@@ -28,7 +28,7 @@
           </div>
           <div class="flex space-x-2">
             <UInput v-model="delta" type="number" step="0.1" label="Delta Turns" class="flex-1" />
-            <UInput v-model="freq" type="number" label="Freq (Hz)" class="w-24" />
+            <UInput v-model="speed" type="number" step="0.1" label="Speed" class="w-24" />
             <UButton @click="move">Move</UButton>
           </div>
         </div>
@@ -63,7 +63,7 @@
 const position = ref(0)
 const running = ref(false)
 const delta = ref(0.0)
-const freq = ref(100)
+const speed = ref(17.0)
 const calState = ref(3)
 const saveConfig = ref(false)
 let ws: WebSocket
@@ -100,7 +100,7 @@ onUnmounted(() => {
 })
 
 async function move() {
-  const res = await fetch(`/api/joints/joint1/move?delta=${delta.value}&freq=${freq.value}`, { method: 'POST' })
+  const res = await fetch(`/api/joints/joint1/move?delta=${delta.value}&speed=${speed.value}`, { method: 'POST' })
   console.log('Move:', await res.json())
 }
 

@@ -1,4 +1,4 @@
-from .transport import ODriveCAN
+from .transport import ODriveCAN, _SET_TRAJ_VEL_LIMIT
 from .node import CanSimpleNode, REBOOT_ACTION_SAVE, REBOOT_ACTION_REBOOT, REBOOT_ACTION_ERASE
 from .calibrator import ODriveCalibrator
 from .configurator import ODriveConfigurator
@@ -13,4 +13,5 @@ __all__ = [
     "ODriveCalibrator",
     "ODriveConfigurator",
     "ODriveJoint",
+    "_SET_TRAJ_VEL_LIMIT",
 ]

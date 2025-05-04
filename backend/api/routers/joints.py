@@ -18,14 +18,14 @@ joints = {
 }
 
 @router.post("/{joint_name}/move")
-async def move_joint(joint_name: str, delta: float, freq: float = 100.0):
+async def move_joint(joint_name: str, delta: float, speed: float = None):
     joint = joints.get(joint_name)
     if not joint:
         raise HTTPException(404, "Unknown joint")
     if not getattr(joint, '_initialized', False):
         joint.initialize()
         setattr(joint, '_initialized', True)
-    return joint.move(delta, freq)
+    return joint.move(delta, speed)
 
 @router.post("/{joint_name}/stop")
 async def stop_joint(joint_name: str):

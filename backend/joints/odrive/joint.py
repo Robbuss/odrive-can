@@ -1,8 +1,9 @@
 import struct, time, threading
 from backend.joints.base import Joint
-from backend.joints.odrive.transport import ODriveCAN, CLOSED_LOOP, IDLE, _SET_INPUT_POS
+from backend.joints.odrive.transport import ODriveCAN, CLOSED_LOOP, IDLE, _SET_INPUT_POS, _SET_TRAJ_VEL_LIMIT, INPUT_MODE_TRAP_TRJ, INPUT_MODE_POS_FILTER
 from backend.joints.odrive.calibrator import ODriveCalibrator
 from backend.joints.odrive.configurator import ODriveConfigurator
+
 class ODriveJoint(Joint):
     def __init__(self, odrive: ODriveCAN):
         self.odrive = odrive
@@ -16,25 +17,36 @@ class ODriveJoint(Joint):
         """
         self.odrive.initialize()
 
-    def move(self, delta: float, freq: float = None) -> dict:
+    def move(self,
+             delta: float,
+             max_vel: float = None  # turns/sec
+    ) -> dict:
         """
-        Arm (if needed), read the current position, 
-        send a single SET_INPUT_POS frame, and return start/target.
+        Send a single position setpoint, optionally first setting
+        a maximum trajectory velocity (turns/sec).
         """
-        # Ensure we’re armed
+        # 1) Arm if needed
         if not getattr(self, "_initialized", False):
             self.initialize()
             setattr(self, "_initialized", True)
 
-        start = self.odrive.read_turns()
+        # 2) Read current & compute target
+        start  = self.odrive.read_turns()
         target = start + delta
 
-        # Pack one SET_INPUT_POS message
-        arb     = (self.odrive.node << 5) | _SET_INPUT_POS
-        payload = struct.pack('<fhh', target, 0, 0)
-        self.odrive.send(arb, payload)
+        # 3) If caller requested a speed limit, send that first
+        if max_vel is not None:
+            self.odrive.set_input_mode(INPUT_MODE_TRAP_TRJ)
+            self.odrive.set_traj_vel_limit(float(max_vel))
+        else:
+            self.odrive.set_input_mode(INPUT_MODE_POS_FILTER)            
 
-        return {"start": start, "target": target}
+        # 4) Finally send the new position
+        arb_pos  = (self.odrive.node << 5) | _SET_INPUT_POS
+        data_pos = struct.pack('<fhh', target, 0, 0)
+        self.odrive.send(arb_pos, data_pos)
+
+        return {"start": start, "target": target, "max_vel": max_vel}
 
     def status(self) -> dict:
         """Return current position and running state."""

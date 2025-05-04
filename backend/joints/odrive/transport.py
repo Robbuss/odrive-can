@@ -6,8 +6,14 @@ _SET_AXIS_STATE = 0x07
 _HEARTBEAT      = 0x01
 _ENCODER_EST    = 0x09
 _SET_INPUT_POS  = 0x0C
+_SET_TRAJ_VEL_LIMIT = 0x11  # from CANSimple spec
+_SET_INPUT_MODE = 0x0A
 IDLE            = 1
 CLOSED_LOOP     = 8
+
+INPUT_MODE_POS_FILTER    = 2   # position controller with velocity filter
+INPUT_MODE_TRAP_TRJ      = 3   # trapezoidal trajectory
+
 
 class ODriveCAN(CANBus):
     def __init__(self, iface: str = "can0", node: int = 0, cpr: int = 4096):
@@ -61,6 +67,23 @@ class ODriveCAN(CANBus):
                 self.stop()
         import threading
         threading.Thread(target=_stream, daemon=True).start()
+
+    def set_input_mode(self, mode: int):
+        """
+        mode: one of the INPUT_MODE_* constants.
+        """
+        arb = (self.node << 5) | _SET_INPUT_MODE
+        # modes are sent as a uint32
+        payload = struct.pack('<I', mode)
+        self.send(arb, payload)        
+
+    def set_traj_vel_limit(self, vel: float):
+        """
+        Must be in trap-traj mode for vel limit to be honored.
+        """
+        arb = (self.node << 5) | _SET_TRAJ_VEL_LIMIT
+        payload = struct.pack('<f', vel)
+        self.send(arb, payload)
 
     def stop(self):
         self.running = False
