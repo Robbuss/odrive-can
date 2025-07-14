@@ -1,0 +1,1523 @@
+Help on package moteus:
+
+NAME
+    moteus
+
+DESCRIPTION
+    Classes and functions for interoperating with the moteus brushless
+    controller.
+
+PACKAGE CONTENTS
+    aioserial
+    aiostream
+    calibrate_encoder
+    command
+    export
+    fdcanusb
+    moteus
+    moteus_tool
+    multiplex
+    posix_aioserial
+    pythoncan
+    reader
+    regression
+    router
+    transport
+    version
+    win32_aioserial
+
+CLASSES
+    builtins.RuntimeError(builtins.Exception)
+        moteus.moteus.CommandError
+    builtins.object
+        moteus.command.Command
+        moteus.fdcanusb.Fdcanusb
+        moteus.moteus.Controller
+        moteus.moteus.PositionResolution
+        moteus.moteus.QueryResolution
+        moteus.moteus.Stream
+        moteus.multiplex.QueryParser
+        moteus.multiplex.RegisterParser
+        moteus.pythoncan.PythonCan
+        moteus.router.Router
+        moteus.transport.Transport
+    enum.IntEnum(builtins.int, enum.ReprEnum)
+        moteus.moteus.Mode
+        moteus.moteus.Register
+    
+    class Command(builtins.object)
+     |  Methods defined here:
+     |  
+     |  parse(self, message)
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors defined here:
+     |  
+     |  __dict__
+     |      dictionary for instance variables (if defined)
+     |  
+     |  __weakref__
+     |      list of weak references to the object (if defined)
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data and other attributes defined here:
+     |  
+     |  arbitration_id = 0
+     |  
+     |  bus = None
+     |  
+     |  can_prefix = 0
+     |  
+     |  data = b''
+     |  
+     |  destination = 1
+     |  
+     |  expected_reply_size = 0
+     |  
+     |  raw = False
+     |  
+     |  reply_required = False
+     |  
+     |  source = 0
+    
+    class CommandError(builtins.RuntimeError)
+     |  CommandError(message)
+     |  
+     |  Method resolution order:
+     |      CommandError
+     |      builtins.RuntimeError
+     |      builtins.Exception
+     |      builtins.BaseException
+     |      builtins.object
+     |  
+     |  Methods defined here:
+     |  
+     |  __init__(self, message)
+     |      Initialize self.  See help(type(self)) for accurate signature.
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors defined here:
+     |  
+     |  __weakref__
+     |      list of weak references to the object (if defined)
+     |  
+     |  ----------------------------------------------------------------------
+     |  Static methods inherited from builtins.RuntimeError:
+     |  
+     |  __new__(*args, **kwargs) from builtins.type
+     |      Create and return a new object.  See help(type) for accurate signature.
+     |  
+     |  ----------------------------------------------------------------------
+     |  Methods inherited from builtins.BaseException:
+     |  
+     |  __delattr__(self, name, /)
+     |      Implement delattr(self, name).
+     |  
+     |  __getattribute__(self, name, /)
+     |      Return getattr(self, name).
+     |  
+     |  __reduce__(...)
+     |      Helper for pickle.
+     |  
+     |  __repr__(self, /)
+     |      Return repr(self).
+     |  
+     |  __setattr__(self, name, value, /)
+     |      Implement setattr(self, name, value).
+     |  
+     |  __setstate__(...)
+     |  
+     |  __str__(self, /)
+     |      Return str(self).
+     |  
+     |  add_note(...)
+     |      Exception.add_note(note) --
+     |      add a note to the exception
+     |  
+     |  with_traceback(...)
+     |      Exception.with_traceback(tb) --
+     |      set self.__traceback__ to tb and return self.
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors inherited from builtins.BaseException:
+     |  
+     |  __cause__
+     |      exception cause
+     |  
+     |  __context__
+     |      exception context
+     |  
+     |  __dict__
+     |  
+     |  __suppress_context__
+     |  
+     |  __traceback__
+     |  
+     |  args
+    
+    class Controller(builtins.object)
+     |  Controller(id=1, query_resolution=<moteus.moteus.QueryResolution object at 0x7ffecaa45810>, position_resolution=<moteus.moteus.PositionResolution object at 0x7ffecaa45850>, vfoc_resolution=<moteus.moteus.VFOCResolution object at 0x7ffecaa45490>, current_resolution=<moteus.moteus.CurrentResolution object at 0x7ffecaa45690>, pwm_resolution=<moteus.moteus.PwmResolution object at 0x7ffecaa45710>, transport=None, can_prefix=0)
+     |  
+     |  Operates a single moteus controller across some communication
+     |  medium.
+     |  
+     |  Attributes:
+     |    id: bus ID of the controller
+     |    query_resolution: an instance of moteus.QueryResolution
+     |    position_resolution: an instance of moteus.PositionResolution
+     |    transport: something modeling moteus.Transport to send commands through
+     |  
+     |  Methods defined here:
+     |  
+     |  __init__(self, id=1, query_resolution=<moteus.moteus.QueryResolution object at 0x7ffecaa45810>, position_resolution=<moteus.moteus.PositionResolution object at 0x7ffecaa45850>, vfoc_resolution=<moteus.moteus.VFOCResolution object at 0x7ffecaa45490>, current_resolution=<moteus.moteus.CurrentResolution object at 0x7ffecaa45690>, pwm_resolution=<moteus.moteus.PwmResolution object at 0x7ffecaa45710>, transport=None, can_prefix=0)
+     |      Initialize self.  See help(type(self)) for accurate signature.
+     |  
+     |  async custom_query(self, *args, **kwargs)
+     |  
+     |  async diagnostic_read(self, *args, **kwargs)
+     |  
+     |  async execute(self, command)
+     |  
+     |  async flush_transport(self)
+     |  
+     |  make_aux_pwm(self, *, aux1_pwm1=None, aux1_pwm2=None, aux1_pwm3=None, aux1_pwm4=None, aux1_pwm5=None, aux2_pwm1=None, aux2_pwm2=None, aux2_pwm3=None, aux2_pwm4=None, aux2_pwm5=None, query=False, query_override=None)
+     |  
+     |  make_brake(self, *, query=False, query_override=None)
+     |  
+     |  make_current(self, *, d_A, q_A, query=False, query_override=None)
+     |      Return a moteus.Command structure with data necessary to send a
+     |      current mode command.
+     |  
+     |  make_custom_query(self, to_query_fields)
+     |      Return a moteus.Command structure with data required to query the
+     |      registers given by the 'to_query_fields' dictionary of
+     |      registers to resolutions.
+     |  
+     |  make_diagnostic_read(self, max_length=48, channel=1)
+     |  
+     |  make_diagnostic_write(self, data, channel=1)
+     |  
+     |  make_position(self, *, position=None, velocity=None, feedforward_torque=None, kp_scale=None, kd_scale=None, maximum_torque=None, stop_position=None, watchdog_timeout=None, velocity_limit=None, accel_limit=None, fixed_voltage_override=None, ilimit_scale=None, query=False, query_override=None)
+     |      Return a moteus.Command structure with data necessary to send a
+     |      position mode command with the given values.
+     |  
+     |  make_query(self, query_override=None)
+     |  
+     |  make_read_gpio(self)
+     |      Return a moteus.Command structure with data necessary to read all
+     |      GPIO digital inputs.
+     |  
+     |  make_recapture_position_velocity(self, query=False, query_override=None)
+     |  
+     |  make_require_reindex(self, query=False, query_override=None)
+     |  
+     |  make_rezero(self, *args, rezero=0.0, query=False, query_override=None)
+     |      # For backwards compatibility, "*_output_nearest" used to be named
+     |      # "make/set_rezero".
+     |  
+     |  make_set_output(self, *args, position=0.0, query=False, query_override=None, cmd=None)
+     |      Return a moteus.Command structure with data necessary to send a
+     |      set output nearest command.
+     |  
+     |  make_set_output_exact(self, *args, position=0.0, query=False, query_override=None)
+     |  
+     |  make_set_output_nearest(self, *args, position=0.0, query=False, query_override=None)
+     |  
+     |  make_set_trim(self, *, trim=0)
+     |  
+     |  make_stay_within(self, *, lower_bound=None, upper_bound=None, feedforward_torque=None, kp_scale=None, kd_scale=None, maximum_torque=None, stop_position=None, watchdog_timeout=None, ilimit_scale=None, query=False, query_override=None)
+     |      Return a moteus.Command structure with data necessary to send a
+     |      within mode command with the given values.
+     |  
+     |  make_stop(self, *, query=False, query_override=None)
+     |      Return a moteus.Command structure with data necessary to send a
+     |      stop mode command.
+     |  
+     |  make_vfoc(self, *, theta, voltage, theta_rate=0.0, query=False, query_override=None)
+     |      Return a moteus.Command structure with data necessary to send a
+     |      voltage mode FOC command.
+     |  
+     |  make_write_gpio(self, aux1=None, aux2=None, query=False, query_override=None)
+     |      Return a moteus.Command structure with data necessary to set one or
+     |      more GPIO registers.
+     |      
+     |      aux1/aux2 are an optional integer bitfield, where the least
+     |      significant bit is pin 0 on the respective port.
+     |  
+     |  async query(self, **kwargs)
+     |  
+     |  async read_gpio(self)
+     |      Return a bytes() object with an int8 for each auxiliary port.  The
+     |      pins for each port are represented as bits, with the least significant
+     |      bit being pin 0.
+     |      
+     |      None can be returned if no response is received.
+     |  
+     |  async send_diagnostic_write(self, *args, **kwargs)
+     |  
+     |  async set_aux_pwm(self, *args, **kwargs)
+     |  
+     |  async set_brake(self, *args, **kwargs)
+     |  
+     |  async set_current(self, *args, **kwargs)
+     |  
+     |  async set_output(self, *args, cmd=None, **kwargs)
+     |  
+     |  async set_output_exact(self, *args, **kwargs)
+     |  
+     |  async set_output_nearest(self, *args, **kwargs)
+     |  
+     |  async set_position(self, *args, **kwargs)
+     |  
+     |  async set_position_wait_complete(self, period_s=0.025, query_override=None, *args, **kwargs)
+     |      Repeatedly send a position mode command to a device until it
+     |      reports that the trajectory has been completed.
+     |      
+     |      If the controller is unresponsive, this method will never return.
+     |  
+     |  async set_recapture_position_velocity(self, query=False, query_override=None)
+     |  
+     |  async set_require_reindex(self, query=False, query_override=None)
+     |  
+     |  async set_rezero(self, *args, **kwargs)
+     |  
+     |  async set_stay_within(self, *args, **kwargs)
+     |  
+     |  async set_stop(self, *args, **kwargs)
+     |  
+     |  async set_trim(self, *args, **kwargs)
+     |  
+     |  async set_vfoc(self, *args, **kwargs)
+     |  
+     |  async set_write_gpio(self, *args, **kwargs)
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors defined here:
+     |  
+     |  __dict__
+     |      dictionary for instance variables (if defined)
+     |  
+     |  __weakref__
+     |      list of weak references to the object (if defined)
+    
+    class Fdcanusb(builtins.object)
+     |  Fdcanusb(path=None, debug_log=None, disable_brs=False)
+     |  
+     |  Connects to a single mjbots fdcanusb.
+     |  
+     |  Methods defined here:
+     |  
+     |  __enter__(self)
+     |  
+     |  __exit__(self, type, value, traceback)
+     |  
+     |  __init__(self, path=None, debug_log=None, disable_brs=False)
+     |      Constructor.
+     |      
+     |      Arguments:
+     |        path: serial port where fdcanusb is located
+     |  
+     |  async cycle(self, commands)
+     |      Request that the given set of commands be sent to the fdcanusb, and
+     |      any responses collated and returned, after being parsed by
+     |      their command specific parsers.
+     |      
+     |      Each command instance must model moteus.Command
+     |  
+     |  detect_fdcanusb(self)
+     |  
+     |  pyserial_detect_fdcanusb(self)
+     |  
+     |  async read(self)
+     |  
+     |  win32_detect_fdcanusb(self)
+     |  
+     |  async write(self, command)
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors defined here:
+     |  
+     |  __dict__
+     |      dictionary for instance variables (if defined)
+     |  
+     |  __weakref__
+     |      list of weak references to the object (if defined)
+    
+    class Mode(enum.IntEnum)
+     |  Mode(value, names=None, *, module=None, qualname=None, type=None, start=1, boundary=None)
+     |  
+     |  Valid values for the Register.MODE register
+     |  
+     |  Method resolution order:
+     |      Mode
+     |      enum.IntEnum
+     |      builtins.int
+     |      enum.ReprEnum
+     |      enum.Enum
+     |      builtins.object
+     |  
+     |  Methods defined here:
+     |  
+     |  __format__(self, format_spec, /)
+     |      Default object formatter.
+     |  
+     |  __new__(cls, value)
+     |      Create and return a new object.  See help(type) for accurate signature.
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data and other attributes defined here:
+     |  
+     |  BRAKE = <Mode.BRAKE: 15>
+     |  
+     |  CURRENT = <Mode.CURRENT: 9>
+     |  
+     |  FAULT = <Mode.FAULT: 1>
+     |  
+     |  MEASURE_IND = <Mode.MEASURE_IND: 14>
+     |  
+     |  POSITION = <Mode.POSITION: 10>
+     |  
+     |  PWM = <Mode.PWM: 5>
+     |  
+     |  STAY_WITHIN = <Mode.STAY_WITHIN: 13>
+     |  
+     |  STOPPED = <Mode.STOPPED: 0>
+     |  
+     |  TIMEOUT = <Mode.TIMEOUT: 11>
+     |  
+     |  VOLTAGE = <Mode.VOLTAGE: 6>
+     |  
+     |  VOLTAGE_DQ = <Mode.VOLTAGE_DQ: 8>
+     |  
+     |  VOLTAGE_FOC = <Mode.VOLTAGE_FOC: 7>
+     |  
+     |  ZERO_VELOCITY = <Mode.ZERO_VELOCITY: 12>
+     |  
+     |  ----------------------------------------------------------------------
+     |  Methods inherited from enum.IntEnum:
+     |  
+     |  __repr__(self)
+     |      Return repr(self).
+     |  
+     |  __str__ = __repr__(self, /)
+     |      Return repr(self).
+     |  
+     |  ----------------------------------------------------------------------
+     |  Methods inherited from builtins.int:
+     |  
+     |  __abs__(self, /)
+     |      abs(self)
+     |  
+     |  __add__(self, value, /)
+     |      Return self+value.
+     |  
+     |  __and__(self, value, /)
+     |      Return self&value.
+     |  
+     |  __bool__(self, /)
+     |      True if self else False
+     |  
+     |  __ceil__(...)
+     |      Ceiling of an Integral returns itself.
+     |  
+     |  __divmod__(self, value, /)
+     |      Return divmod(self, value).
+     |  
+     |  __eq__(self, value, /)
+     |      Return self==value.
+     |  
+     |  __float__(self, /)
+     |      float(self)
+     |  
+     |  __floor__(...)
+     |      Flooring an Integral returns itself.
+     |  
+     |  __floordiv__(self, value, /)
+     |      Return self//value.
+     |  
+     |  __ge__(self, value, /)
+     |      Return self>=value.
+     |  
+     |  __getattribute__(self, name, /)
+     |      Return getattr(self, name).
+     |  
+     |  __getnewargs__(self, /)
+     |  
+     |  __gt__(self, value, /)
+     |      Return self>value.
+     |  
+     |  __hash__(self, /)
+     |      Return hash(self).
+     |  
+     |  __index__(self, /)
+     |      Return self converted to an integer, if self is suitable for use as an index into a list.
+     |  
+     |  __int__(self, /)
+     |      int(self)
+     |  
+     |  __invert__(self, /)
+     |      ~self
+     |  
+     |  __le__(self, value, /)
+     |      Return self<=value.
+     |  
+     |  __lshift__(self, value, /)
+     |      Return self<<value.
+     |  
+     |  __lt__(self, value, /)
+     |      Return self<value.
+     |  
+     |  __mod__(self, value, /)
+     |      Return self%value.
+     |  
+     |  __mul__(self, value, /)
+     |      Return self*value.
+     |  
+     |  __ne__(self, value, /)
+     |      Return self!=value.
+     |  
+     |  __neg__(self, /)
+     |      -self
+     |  
+     |  __or__(self, value, /)
+     |      Return self|value.
+     |  
+     |  __pos__(self, /)
+     |      +self
+     |  
+     |  __pow__(self, value, mod=None, /)
+     |      Return pow(self, value, mod).
+     |  
+     |  __radd__(self, value, /)
+     |      Return value+self.
+     |  
+     |  __rand__(self, value, /)
+     |      Return value&self.
+     |  
+     |  __rdivmod__(self, value, /)
+     |      Return divmod(value, self).
+     |  
+     |  __rfloordiv__(self, value, /)
+     |      Return value//self.
+     |  
+     |  __rlshift__(self, value, /)
+     |      Return value<<self.
+     |  
+     |  __rmod__(self, value, /)
+     |      Return value%self.
+     |  
+     |  __rmul__(self, value, /)
+     |      Return value*self.
+     |  
+     |  __ror__(self, value, /)
+     |      Return value|self.
+     |  
+     |  __round__(...)
+     |      Rounding an Integral returns itself.
+     |      
+     |      Rounding with an ndigits argument also returns an integer.
+     |  
+     |  __rpow__(self, value, mod=None, /)
+     |      Return pow(value, self, mod).
+     |  
+     |  __rrshift__(self, value, /)
+     |      Return value>>self.
+     |  
+     |  __rshift__(self, value, /)
+     |      Return self>>value.
+     |  
+     |  __rsub__(self, value, /)
+     |      Return value-self.
+     |  
+     |  __rtruediv__(self, value, /)
+     |      Return value/self.
+     |  
+     |  __rxor__(self, value, /)
+     |      Return value^self.
+     |  
+     |  __sizeof__(self, /)
+     |      Returns size in memory, in bytes.
+     |  
+     |  __sub__(self, value, /)
+     |      Return self-value.
+     |  
+     |  __truediv__(self, value, /)
+     |      Return self/value.
+     |  
+     |  __trunc__(...)
+     |      Truncating an Integral returns itself.
+     |  
+     |  __xor__(self, value, /)
+     |      Return self^value.
+     |  
+     |  as_integer_ratio(self, /)
+     |      Return integer ratio.
+     |      
+     |      Return a pair of integers, whose ratio is exactly equal to the original int
+     |      and with a positive denominator.
+     |      
+     |      >>> (10).as_integer_ratio()
+     |      (10, 1)
+     |      >>> (-10).as_integer_ratio()
+     |      (-10, 1)
+     |      >>> (0).as_integer_ratio()
+     |      (0, 1)
+     |  
+     |  bit_count(self, /)
+     |      Number of ones in the binary representation of the absolute value of self.
+     |      
+     |      Also known as the population count.
+     |      
+     |      >>> bin(13)
+     |      '0b1101'
+     |      >>> (13).bit_count()
+     |      3
+     |  
+     |  bit_length(self, /)
+     |      Number of bits necessary to represent self in binary.
+     |      
+     |      >>> bin(37)
+     |      '0b100101'
+     |      >>> (37).bit_length()
+     |      6
+     |  
+     |  conjugate(...)
+     |      Returns self, the complex conjugate of any int.
+     |  
+     |  to_bytes(self, /, length=1, byteorder='big', *, signed=False)
+     |      Return an array of bytes representing an integer.
+     |      
+     |      length
+     |        Length of bytes object to use.  An OverflowError is raised if the
+     |        integer is not representable with the given number of bytes.  Default
+     |        is length 1.
+     |      byteorder
+     |        The byte order used to represent the integer.  If byteorder is 'big',
+     |        the most significant byte is at the beginning of the byte array.  If
+     |        byteorder is 'little', the most significant byte is at the end of the
+     |        byte array.  To request the native byte order of the host system, use
+     |        `sys.byteorder' as the byte order value.  Default is to use 'big'.
+     |      signed
+     |        Determines whether two's complement is used to represent the integer.
+     |        If signed is False and a negative integer is given, an OverflowError
+     |        is raised.
+     |  
+     |  ----------------------------------------------------------------------
+     |  Class methods inherited from builtins.int:
+     |  
+     |  from_bytes(bytes, byteorder='big', *, signed=False) from enum.EnumType
+     |      Return the integer represented by the given array of bytes.
+     |      
+     |      bytes
+     |        Holds the array of bytes to convert.  The argument must either
+     |        support the buffer protocol or be an iterable object producing bytes.
+     |        Bytes and bytearray are examples of built-in objects that support the
+     |        buffer protocol.
+     |      byteorder
+     |        The byte order used to represent the integer.  If byteorder is 'big',
+     |        the most significant byte is at the beginning of the byte array.  If
+     |        byteorder is 'little', the most significant byte is at the end of the
+     |        byte array.  To request the native byte order of the host system, use
+     |        `sys.byteorder' as the byte order value.  Default is to use 'big'.
+     |      signed
+     |        Indicates whether two's complement is used to represent the integer.
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors inherited from builtins.int:
+     |  
+     |  denominator
+     |      the denominator of a rational number in lowest terms
+     |  
+     |  imag
+     |      the imaginary part of a complex number
+     |  
+     |  numerator
+     |      the numerator of a rational number in lowest terms
+     |  
+     |  real
+     |      the real part of a complex number
+     |  
+     |  ----------------------------------------------------------------------
+     |  Methods inherited from enum.Enum:
+     |  
+     |  __dir__(self)
+     |      Returns all members and all public methods
+     |  
+     |  __init__(self, *args, **kwds)
+     |      Initialize self.  See help(type(self)) for accurate signature.
+     |  
+     |  __reduce_ex__(self, proto)
+     |      Helper for pickle.
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors inherited from enum.Enum:
+     |  
+     |  name
+     |      The name of the Enum member.
+     |  
+     |  value
+     |      The value of the Enum member.
+     |  
+     |  ----------------------------------------------------------------------
+     |  Methods inherited from enum.EnumType:
+     |  
+     |  __contains__(member) from enum.EnumType
+     |      Return True if member is a member of this enum
+     |      raises TypeError if member is not an enum member
+     |      
+     |      note: in 3.12 TypeError will no longer be raised, and True will also be
+     |      returned if member is the value of a member in this enum
+     |  
+     |  __getitem__(name) from enum.EnumType
+     |      Return the member matching `name`.
+     |  
+     |  __iter__() from enum.EnumType
+     |      Return members in definition order.
+     |  
+     |  __len__() from enum.EnumType
+     |      Return the number of members (no aliases)
+     |  
+     |  ----------------------------------------------------------------------
+     |  Readonly properties inherited from enum.EnumType:
+     |  
+     |  __members__
+     |      Returns a mapping of member name->value.
+     |      
+     |      This mapping lists all enum members, including aliases. Note that this
+     |      is a read-only view of the internal mapping.
+    
+    class PositionResolution(builtins.object)
+     |  Data descriptors defined here:
+     |  
+     |  __dict__
+     |      dictionary for instance variables (if defined)
+     |  
+     |  __weakref__
+     |      list of weak references to the object (if defined)
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data and other attributes defined here:
+     |  
+     |  accel_limit = 3
+     |  
+     |  feedforward_torque = 3
+     |  
+     |  fixed_voltage_override = 3
+     |  
+     |  ilimit_scale = 3
+     |  
+     |  kd_scale = 3
+     |  
+     |  kp_scale = 3
+     |  
+     |  maximum_torque = 3
+     |  
+     |  position = 3
+     |  
+     |  stop_position = 3
+     |  
+     |  velocity = 3
+     |  
+     |  velocity_limit = 3
+     |  
+     |  watchdog_timeout = 3
+    
+    class PythonCan(builtins.object)
+     |  PythonCan(*args, **kwargs)
+     |  
+     |  Implements a 'Transport' on top of python-can.
+     |  
+     |  Methods defined here:
+     |  
+     |  __enter__(self)
+     |  
+     |  __exit__(self, type, value, traceback)
+     |  
+     |  __init__(self, *args, **kwargs)
+     |      All arguments pass through to can.Bus
+     |  
+     |  close(self)
+     |  
+     |  async cycle(self, commands)
+     |  
+     |  async read(self)
+     |  
+     |  async write(self, command)
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors defined here:
+     |  
+     |  __dict__
+     |      dictionary for instance variables (if defined)
+     |  
+     |  __weakref__
+     |      list of weak references to the object (if defined)
+    
+    class QueryParser(builtins.object)
+     |  QueryParser(data)
+     |  
+     |  Parse a query to see what fields will be queried and at what
+     |  resolution.
+     |  
+     |  Methods defined here:
+     |  
+     |  __init__(self, data)
+     |      Initialize self.  See help(type(self)) for accurate signature.
+     |  
+     |  __iter__(self)
+     |  
+     |  __next__(self)
+     |  
+     |  ----------------------------------------------------------------------
+     |  Static methods defined here:
+     |  
+     |  parse(data)
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors defined here:
+     |  
+     |  __dict__
+     |      dictionary for instance variables (if defined)
+     |  
+     |  __weakref__
+     |      list of weak references to the object (if defined)
+    
+    class QueryResolution(builtins.object)
+     |  Data descriptors defined here:
+     |  
+     |  __dict__
+     |      dictionary for instance variables (if defined)
+     |  
+     |  __weakref__
+     |      list of weak references to the object (if defined)
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data and other attributes defined here:
+     |  
+     |  abs_position = 4
+     |  
+     |  aux1_gpio = 4
+     |  
+     |  aux2_gpio = 4
+     |  
+     |  d_current = 4
+     |  
+     |  fault = 0
+     |  
+     |  home_state = 4
+     |  
+     |  mode = 0
+     |  
+     |  motor_temperature = 4
+     |  
+     |  position = 3
+     |  
+     |  power = 4
+     |  
+     |  q_current = 4
+     |  
+     |  rezero_state = 4
+     |  
+     |  temperature = 0
+     |  
+     |  torque = 3
+     |  
+     |  trajectory_complete = 4
+     |  
+     |  velocity = 3
+     |  
+     |  voltage = 0
+    
+    class Register(enum.IntEnum)
+     |  Register(value, names=None, *, module=None, qualname=None, type=None, start=1, boundary=None)
+     |  
+     |  These are the registers which are exposed for reading or writing
+     |  from the moteus controller.
+     |  
+     |  The full list can be found at:
+     |  https://github.com/mjbots/moteus/blob/main/docs/reference.md#a2b-registers
+     |  
+     |  Method resolution order:
+     |      Register
+     |      enum.IntEnum
+     |      builtins.int
+     |      enum.ReprEnum
+     |      enum.Enum
+     |      builtins.object
+     |  
+     |  Methods defined here:
+     |  
+     |  __format__(self, format_spec, /)
+     |      Default object formatter.
+     |  
+     |  __new__(cls, value)
+     |      Create and return a new object.  See help(type) for accurate signature.
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data and other attributes defined here:
+     |  
+     |  ABS_POSITION = <Register.ABS_POSITION: 6>
+     |  
+     |  AUX1_ANALOG_IN1 = <Register.AUX1_ANALOG_IN1: 96>
+     |  
+     |  AUX1_ANALOG_IN2 = <Register.AUX1_ANALOG_IN2: 97>
+     |  
+     |  AUX1_ANALOG_IN3 = <Register.AUX1_ANALOG_IN3: 98>
+     |  
+     |  AUX1_ANALOG_IN4 = <Register.AUX1_ANALOG_IN4: 99>
+     |  
+     |  AUX1_ANALOG_IN5 = <Register.AUX1_ANALOG_IN5: 100>
+     |  
+     |  AUX1_GPIO_COMMAND = <Register.AUX1_GPIO_COMMAND: 92>
+     |  
+     |  AUX1_GPIO_STATUS = <Register.AUX1_GPIO_STATUS: 94>
+     |  
+     |  AUX1_PWM1 = <Register.AUX1_PWM1: 118>
+     |  
+     |  AUX1_PWM2 = <Register.AUX1_PWM2: 119>
+     |  
+     |  AUX1_PWM3 = <Register.AUX1_PWM3: 120>
+     |  
+     |  AUX1_PWM4 = <Register.AUX1_PWM4: 121>
+     |  
+     |  AUX1_PWM5 = <Register.AUX1_PWM5: 122>
+     |  
+     |  AUX2_ANALOG_IN1 = <Register.AUX2_ANALOG_IN1: 104>
+     |  
+     |  AUX2_ANALOG_IN2 = <Register.AUX2_ANALOG_IN2: 105>
+     |  
+     |  AUX2_ANALOG_IN3 = <Register.AUX2_ANALOG_IN3: 106>
+     |  
+     |  AUX2_ANALOG_IN4 = <Register.AUX2_ANALOG_IN4: 107>
+     |  
+     |  AUX2_ANALOG_IN5 = <Register.AUX2_ANALOG_IN5: 108>
+     |  
+     |  AUX2_GPIO_COMMAND = <Register.AUX2_GPIO_COMMAND: 93>
+     |  
+     |  AUX2_GPIO_STATUS = <Register.AUX2_GPIO_STATUS: 95>
+     |  
+     |  AUX2_PWM1 = <Register.AUX2_PWM1: 123>
+     |  
+     |  AUX2_PWM2 = <Register.AUX2_PWM2: 124>
+     |  
+     |  AUX2_PWM3 = <Register.AUX2_PWM3: 125>
+     |  
+     |  AUX2_PWM4 = <Register.AUX2_PWM4: 126>
+     |  
+     |  AUX2_PWM5 = <Register.AUX2_PWM5: 127>
+     |  
+     |  CLOCK_TRIM = <Register.CLOCK_TRIM: 113>
+     |  
+     |  COMMAND_ACCEL_LIMIT = <Register.COMMAND_ACCEL_LIMIT: 41>
+     |  
+     |  COMMAND_D_CURRENT = <Register.COMMAND_D_CURRENT: 29>
+     |  
+     |  COMMAND_FEEDFORWARD_TORQUE = <Register.COMMAND_FEEDFORWARD_TORQUE: 34>
+     |  
+     |  COMMAND_FIXED_VOLTAGE_OVERRIDE = <Register.COMMAND_FIXED_VOLTAGE_OVERR...
+     |  
+     |  COMMAND_ILIMIT_SCALE = <Register.COMMAND_ILIMIT_SCALE: 43>
+     |  
+     |  COMMAND_KD_SCALE = <Register.COMMAND_KD_SCALE: 36>
+     |  
+     |  COMMAND_KP_SCALE = <Register.COMMAND_KP_SCALE: 35>
+     |  
+     |  COMMAND_POSITION = <Register.COMMAND_POSITION: 32>
+     |  
+     |  COMMAND_POSITION_MAX_TORQUE = <Register.COMMAND_POSITION_MAX_TORQUE: 3...
+     |  
+     |  COMMAND_Q_CURRENT = <Register.COMMAND_Q_CURRENT: 28>
+     |  
+     |  COMMAND_STOP_POSITION = <Register.COMMAND_STOP_POSITION: 38>
+     |  
+     |  COMMAND_TIMEOUT = <Register.COMMAND_TIMEOUT: 39>
+     |  
+     |  COMMAND_VELOCITY = <Register.COMMAND_VELOCITY: 33>
+     |  
+     |  COMMAND_VELOCITY_LIMIT = <Register.COMMAND_VELOCITY_LIMIT: 40>
+     |  
+     |  COMMAND_WITHIN_FEEDFORWARD_TORQUE = <Register.COMMAND_WITHIN_FEEDFORWA...
+     |  
+     |  COMMAND_WITHIN_ILIMIT_SCALE = <Register.COMMAND_WITHIN_ILIMIT_SCALE: 7...
+     |  
+     |  COMMAND_WITHIN_KD_SCALE = <Register.COMMAND_WITHIN_KD_SCALE: 68>
+     |  
+     |  COMMAND_WITHIN_KP_SCALE = <Register.COMMAND_WITHIN_KP_SCALE: 67>
+     |  
+     |  COMMAND_WITHIN_LOWER_BOUND = <Register.COMMAND_WITHIN_LOWER_BOUND: 64>
+     |  
+     |  COMMAND_WITHIN_MAX_TORQUE = <Register.COMMAND_WITHIN_MAX_TORQUE: 69>
+     |  
+     |  COMMAND_WITHIN_TIMEOUT = <Register.COMMAND_WITHIN_TIMEOUT: 70>
+     |  
+     |  COMMAND_WITHIN_UPPER_BOUND = <Register.COMMAND_WITHIN_UPPER_BOUND: 65>
+     |  
+     |  CONTROL_POSITION = <Register.CONTROL_POSITION: 56>
+     |  
+     |  CONTROL_TORQUE = <Register.CONTROL_TORQUE: 58>
+     |  
+     |  CONTROL_VELOCITY = <Register.CONTROL_VELOCITY: 57>
+     |  
+     |  DRIVER_FAULT1 = <Register.DRIVER_FAULT1: 320>
+     |  
+     |  DRIVER_FAULT2 = <Register.DRIVER_FAULT2: 321>
+     |  
+     |  D_CURRENT = <Register.D_CURRENT: 5>
+     |  
+     |  ENCODER_0_POSITION = <Register.ENCODER_0_POSITION: 80>
+     |  
+     |  ENCODER_0_VELOCITY = <Register.ENCODER_0_VELOCITY: 81>
+     |  
+     |  ENCODER_1_POSITION = <Register.ENCODER_1_POSITION: 82>
+     |  
+     |  ENCODER_1_VELOCITY = <Register.ENCODER_1_VELOCITY: 83>
+     |  
+     |  ENCODER_2_POSITION = <Register.ENCODER_2_POSITION: 84>
+     |  
+     |  ENCODER_2_VELOCITY = <Register.ENCODER_2_VELOCITY: 85>
+     |  
+     |  ENCODER_VALIDITY = <Register.ENCODER_VALIDITY: 88>
+     |  
+     |  FAULT = <Register.FAULT: 15>
+     |  
+     |  MILLISECOND_COUNTER = <Register.MILLISECOND_COUNTER: 112>
+     |  
+     |  MODE = <Register.MODE: 0>
+     |  
+     |  MOTOR_TEMPERATURE = <Register.MOTOR_TEMPERATURE: 10>
+     |  
+     |  POSITION = <Register.POSITION: 1>
+     |  
+     |  POSITION_COMMAND = <Register.POSITION_COMMAND: 52>
+     |  
+     |  POSITION_ERROR = <Register.POSITION_ERROR: 59>
+     |  
+     |  POSITION_FEEDFORWARD = <Register.POSITION_FEEDFORWARD: 51>
+     |  
+     |  POSITION_KD = <Register.POSITION_KD: 50>
+     |  
+     |  POSITION_KI = <Register.POSITION_KI: 49>
+     |  
+     |  POSITION_KP = <Register.POSITION_KP: 48>
+     |  
+     |  POWER = <Register.POWER: 7>
+     |  
+     |  PWM_PHASE_A = <Register.PWM_PHASE_A: 16>
+     |  
+     |  PWM_PHASE_B = <Register.PWM_PHASE_B: 17>
+     |  
+     |  PWM_PHASE_C = <Register.PWM_PHASE_C: 18>
+     |  
+     |  Q_CURRENT = <Register.Q_CURRENT: 4>
+     |  
+     |  RECAPTURE_POSITION_VELOCITY = <Register.RECAPTURE_POSITION_VELOCITY: 3...
+     |  
+     |  REGISTER_MAP_VERSION = <Register.REGISTER_MAP_VERSION: 258>
+     |  
+     |  REQUIRE_REINDEX = <Register.REQUIRE_REINDEX: 306>
+     |  
+     |  REZERO = <Register.REZERO: 304>
+     |  
+     |  REZERO_STATE = <Register.REZERO_STATE: 12>
+     |  
+     |  SERIAL_NUMBER = <Register.SERIAL_NUMBER: 288>
+     |  
+     |  SERIAL_NUMBER2 = <Register.SERIAL_NUMBER2: 289>
+     |  
+     |  SERIAL_NUMBER3 = <Register.SERIAL_NUMBER3: 290>
+     |  
+     |  SET_OUTPUT_EXACT = <Register.SET_OUTPUT_EXACT: 305>
+     |  
+     |  TEMPERATURE = <Register.TEMPERATURE: 14>
+     |  
+     |  TORQUE = <Register.TORQUE: 3>
+     |  
+     |  TORQUE_ERROR = <Register.TORQUE_ERROR: 61>
+     |  
+     |  TRAJECTORY_COMPLETE = <Register.TRAJECTORY_COMPLETE: 11>
+     |  
+     |  UUID1 = <Register.UUID1: 336>
+     |  
+     |  UUID2 = <Register.UUID2: 337>
+     |  
+     |  UUID3 = <Register.UUID3: 338>
+     |  
+     |  UUID4 = <Register.UUID4: 339>
+     |  
+     |  UUID_MASK1 = <Register.UUID_MASK1: 340>
+     |  
+     |  UUID_MASK2 = <Register.UUID_MASK2: 341>
+     |  
+     |  UUID_MASK3 = <Register.UUID_MASK3: 342>
+     |  
+     |  UUID_MASK4 = <Register.UUID_MASK4: 343>
+     |  
+     |  VELOCITY = <Register.VELOCITY: 2>
+     |  
+     |  VELOCITY_ERROR = <Register.VELOCITY_ERROR: 60>
+     |  
+     |  VFOC_THETA = <Register.VFOC_THETA: 24>
+     |  
+     |  VFOC_THETA_RATE = <Register.VFOC_THETA_RATE: 30>
+     |  
+     |  VFOC_VOLTAGE = <Register.VFOC_VOLTAGE: 25>
+     |  
+     |  VOLTAGE = <Register.VOLTAGE: 13>
+     |  
+     |  VOLTAGEDQ_D = <Register.VOLTAGEDQ_D: 26>
+     |  
+     |  VOLTAGEDQ_Q = <Register.VOLTAGEDQ_Q: 27>
+     |  
+     |  VOLTAGE_PHASE_A = <Register.VOLTAGE_PHASE_A: 20>
+     |  
+     |  VOLTAGE_PHASE_B = <Register.VOLTAGE_PHASE_B: 21>
+     |  
+     |  VOLTAGE_PHASE_C = <Register.VOLTAGE_PHASE_C: 22>
+     |  
+     |  ----------------------------------------------------------------------
+     |  Methods inherited from enum.IntEnum:
+     |  
+     |  __repr__(self)
+     |      Return repr(self).
+     |  
+     |  __str__ = __repr__(self, /)
+     |      Return repr(self).
+     |  
+     |  ----------------------------------------------------------------------
+     |  Methods inherited from builtins.int:
+     |  
+     |  __abs__(self, /)
+     |      abs(self)
+     |  
+     |  __add__(self, value, /)
+     |      Return self+value.
+     |  
+     |  __and__(self, value, /)
+     |      Return self&value.
+     |  
+     |  __bool__(self, /)
+     |      True if self else False
+     |  
+     |  __ceil__(...)
+     |      Ceiling of an Integral returns itself.
+     |  
+     |  __divmod__(self, value, /)
+     |      Return divmod(self, value).
+     |  
+     |  __eq__(self, value, /)
+     |      Return self==value.
+     |  
+     |  __float__(self, /)
+     |      float(self)
+     |  
+     |  __floor__(...)
+     |      Flooring an Integral returns itself.
+     |  
+     |  __floordiv__(self, value, /)
+     |      Return self//value.
+     |  
+     |  __ge__(self, value, /)
+     |      Return self>=value.
+     |  
+     |  __getattribute__(self, name, /)
+     |      Return getattr(self, name).
+     |  
+     |  __getnewargs__(self, /)
+     |  
+     |  __gt__(self, value, /)
+     |      Return self>value.
+     |  
+     |  __hash__(self, /)
+     |      Return hash(self).
+     |  
+     |  __index__(self, /)
+     |      Return self converted to an integer, if self is suitable for use as an index into a list.
+     |  
+     |  __int__(self, /)
+     |      int(self)
+     |  
+     |  __invert__(self, /)
+     |      ~self
+     |  
+     |  __le__(self, value, /)
+     |      Return self<=value.
+     |  
+     |  __lshift__(self, value, /)
+     |      Return self<<value.
+     |  
+     |  __lt__(self, value, /)
+     |      Return self<value.
+     |  
+     |  __mod__(self, value, /)
+     |      Return self%value.
+     |  
+     |  __mul__(self, value, /)
+     |      Return self*value.
+     |  
+     |  __ne__(self, value, /)
+     |      Return self!=value.
+     |  
+     |  __neg__(self, /)
+     |      -self
+     |  
+     |  __or__(self, value, /)
+     |      Return self|value.
+     |  
+     |  __pos__(self, /)
+     |      +self
+     |  
+     |  __pow__(self, value, mod=None, /)
+     |      Return pow(self, value, mod).
+     |  
+     |  __radd__(self, value, /)
+     |      Return value+self.
+     |  
+     |  __rand__(self, value, /)
+     |      Return value&self.
+     |  
+     |  __rdivmod__(self, value, /)
+     |      Return divmod(value, self).
+     |  
+     |  __rfloordiv__(self, value, /)
+     |      Return value//self.
+     |  
+     |  __rlshift__(self, value, /)
+     |      Return value<<self.
+     |  
+     |  __rmod__(self, value, /)
+     |      Return value%self.
+     |  
+     |  __rmul__(self, value, /)
+     |      Return value*self.
+     |  
+     |  __ror__(self, value, /)
+     |      Return value|self.
+     |  
+     |  __round__(...)
+     |      Rounding an Integral returns itself.
+     |      
+     |      Rounding with an ndigits argument also returns an integer.
+     |  
+     |  __rpow__(self, value, mod=None, /)
+     |      Return pow(value, self, mod).
+     |  
+     |  __rrshift__(self, value, /)
+     |      Return value>>self.
+     |  
+     |  __rshift__(self, value, /)
+     |      Return self>>value.
+     |  
+     |  __rsub__(self, value, /)
+     |      Return value-self.
+     |  
+     |  __rtruediv__(self, value, /)
+     |      Return value/self.
+     |  
+     |  __rxor__(self, value, /)
+     |      Return value^self.
+     |  
+     |  __sizeof__(self, /)
+     |      Returns size in memory, in bytes.
+     |  
+     |  __sub__(self, value, /)
+     |      Return self-value.
+     |  
+     |  __truediv__(self, value, /)
+     |      Return self/value.
+     |  
+     |  __trunc__(...)
+     |      Truncating an Integral returns itself.
+     |  
+     |  __xor__(self, value, /)
+     |      Return self^value.
+     |  
+     |  as_integer_ratio(self, /)
+     |      Return integer ratio.
+     |      
+     |      Return a pair of integers, whose ratio is exactly equal to the original int
+     |      and with a positive denominator.
+     |      
+     |      >>> (10).as_integer_ratio()
+     |      (10, 1)
+     |      >>> (-10).as_integer_ratio()
+     |      (-10, 1)
+     |      >>> (0).as_integer_ratio()
+     |      (0, 1)
+     |  
+     |  bit_count(self, /)
+     |      Number of ones in the binary representation of the absolute value of self.
+     |      
+     |      Also known as the population count.
+     |      
+     |      >>> bin(13)
+     |      '0b1101'
+     |      >>> (13).bit_count()
+     |      3
+     |  
+     |  bit_length(self, /)
+     |      Number of bits necessary to represent self in binary.
+     |      
+     |      >>> bin(37)
+     |      '0b100101'
+     |      >>> (37).bit_length()
+     |      6
+     |  
+     |  conjugate(...)
+     |      Returns self, the complex conjugate of any int.
+     |  
+     |  to_bytes(self, /, length=1, byteorder='big', *, signed=False)
+     |      Return an array of bytes representing an integer.
+     |      
+     |      length
+     |        Length of bytes object to use.  An OverflowError is raised if the
+     |        integer is not representable with the given number of bytes.  Default
+     |        is length 1.
+     |      byteorder
+     |        The byte order used to represent the integer.  If byteorder is 'big',
+     |        the most significant byte is at the beginning of the byte array.  If
+     |        byteorder is 'little', the most significant byte is at the end of the
+     |        byte array.  To request the native byte order of the host system, use
+     |        `sys.byteorder' as the byte order value.  Default is to use 'big'.
+     |      signed
+     |        Determines whether two's complement is used to represent the integer.
+     |        If signed is False and a negative integer is given, an OverflowError
+     |        is raised.
+     |  
+     |  ----------------------------------------------------------------------
+     |  Class methods inherited from builtins.int:
+     |  
+     |  from_bytes(bytes, byteorder='big', *, signed=False) from enum.EnumType
+     |      Return the integer represented by the given array of bytes.
+     |      
+     |      bytes
+     |        Holds the array of bytes to convert.  The argument must either
+     |        support the buffer protocol or be an iterable object producing bytes.
+     |        Bytes and bytearray are examples of built-in objects that support the
+     |        buffer protocol.
+     |      byteorder
+     |        The byte order used to represent the integer.  If byteorder is 'big',
+     |        the most significant byte is at the beginning of the byte array.  If
+     |        byteorder is 'little', the most significant byte is at the end of the
+     |        byte array.  To request the native byte order of the host system, use
+     |        `sys.byteorder' as the byte order value.  Default is to use 'big'.
+     |      signed
+     |        Indicates whether two's complement is used to represent the integer.
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors inherited from builtins.int:
+     |  
+     |  denominator
+     |      the denominator of a rational number in lowest terms
+     |  
+     |  imag
+     |      the imaginary part of a complex number
+     |  
+     |  numerator
+     |      the numerator of a rational number in lowest terms
+     |  
+     |  real
+     |      the real part of a complex number
+     |  
+     |  ----------------------------------------------------------------------
+     |  Methods inherited from enum.Enum:
+     |  
+     |  __dir__(self)
+     |      Returns all members and all public methods
+     |  
+     |  __init__(self, *args, **kwds)
+     |      Initialize self.  See help(type(self)) for accurate signature.
+     |  
+     |  __reduce_ex__(self, proto)
+     |      Helper for pickle.
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors inherited from enum.Enum:
+     |  
+     |  name
+     |      The name of the Enum member.
+     |  
+     |  value
+     |      The value of the Enum member.
+     |  
+     |  ----------------------------------------------------------------------
+     |  Methods inherited from enum.EnumType:
+     |  
+     |  __contains__(member) from enum.EnumType
+     |      Return True if member is a member of this enum
+     |      raises TypeError if member is not an enum member
+     |      
+     |      note: in 3.12 TypeError will no longer be raised, and True will also be
+     |      returned if member is the value of a member in this enum
+     |  
+     |  __getitem__(name) from enum.EnumType
+     |      Return the member matching `name`.
+     |  
+     |  __iter__() from enum.EnumType
+     |      Return members in definition order.
+     |  
+     |  __len__() from enum.EnumType
+     |      Return the number of members (no aliases)
+     |  
+     |  ----------------------------------------------------------------------
+     |  Readonly properties inherited from enum.EnumType:
+     |  
+     |  __members__
+     |      Returns a mapping of member name->value.
+     |      
+     |      This mapping lists all enum members, including aliases. Note that this
+     |      is a read-only view of the internal mapping.
+    
+    class RegisterParser(builtins.object)
+     |  RegisterParser(data)
+     |  
+     |  This can be used as a helper for parsing multiplex formatted
+     |  register replies.
+     |  
+     |  Methods defined here:
+     |  
+     |  __init__(self, data)
+     |      Arguments:
+     |      
+     |       data: a 'byte' containing multiplex response data
+     |  
+     |  nanify(self, value, resolution)
+     |      The multiplex register protocol uses the negative-most value to
+     |      represent NaN.  Convert from raw integers to integers with
+     |      possible NaN.
+     |  
+     |  next(self)
+     |      Return metadata about the next available register value in the stream.
+     |      
+     |       Return, tuple: (valid, register_number, resolution)
+     |      
+     |      valid: boolean, False if no more register data is present
+     |      register_number: integer register number
+     |      resolution: One of INT8/INT16/INT32/F32
+     |  
+     |  read(self, resolution)
+     |      Consume and return a single value from the stream.
+     |  
+     |  read_int(self, resolution)
+     |      Read a single register value, which is assumed to represent an
+     |      integer value.
+     |  
+     |  read_mapped(self, resolution, int8_scale, int16_scale, int32_scale)
+     |      Read a single register value, where the scale value for each
+     |      resolution is known.
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors defined here:
+     |  
+     |  __dict__
+     |      dictionary for instance variables (if defined)
+     |  
+     |  __weakref__
+     |      list of weak references to the object (if defined)
+    
+    class Router(builtins.object)
+     |  Router(destinations)
+     |  
+     |  This dispatches multiplex commands and responses to multiple
+     |  destinations depending upon id.
+     |  
+     |  Methods defined here:
+     |  
+     |  __init__(self, destinations)
+     |      Args:
+     |      
+     |      destinations: A list of tuples, (target, [list, of, ids])
+     |  
+     |  async cycle(self, commands)
+     |  
+     |  async read(self)
+     |  
+     |  async write(self, command)
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors defined here:
+     |  
+     |  __dict__
+     |      dictionary for instance variables (if defined)
+     |  
+     |  __weakref__
+     |      list of weak references to the object (if defined)
+    
+    class Stream(builtins.object)
+     |  Stream(controller, verbose=False, channel=1)
+     |  
+     |  Presents a python file-like interface to the diagnostic stream of a
+     |  moteus controller.
+     |  
+     |  Methods defined here:
+     |  
+     |  __init__(self, controller, verbose=False, channel=1)
+     |      Initialize self.  See help(type(self)) for accurate signature.
+     |  
+     |  async command(self, data, allow_any_response=False)
+     |  
+     |  async drain(self)
+     |  
+     |  async flush_read(self, timeout=0.2)
+     |  
+     |  async read(self, size, block=True)
+     |  
+     |  async read_binary_blob(self)
+     |  
+     |  async read_data(self, name)
+     |  
+     |  async read_until_OK(self)
+     |  
+     |  async readline(self)
+     |  
+     |  write(self, data)
+     |  
+     |  async write_message(self, data)
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors defined here:
+     |  
+     |  __dict__
+     |      dictionary for instance variables (if defined)
+     |  
+     |  __weakref__
+     |      list of weak references to the object (if defined)
+    
+    class Transport(builtins.object)
+     |  This is an object which can dispatch commands to one or more
+     |  controllers across potentially multiple CAN-FD busses.
+     |  
+     |  Methods defined here:
+     |  
+     |  async cycle(self, commands)
+     |      The 'cycle' method accepts a list of 'commands'.  Each command must
+     |       model moteus.Command.
+     |      
+     |      It should return a list of results from Command.parse()
+     |  
+     |  ----------------------------------------------------------------------
+     |  Data descriptors defined here:
+     |  
+     |  __dict__
+     |      dictionary for instance variables (if defined)
+     |  
+     |  __weakref__
+     |      list of weak references to the object (if defined)
+
+FUNCTIONS
+    get_singleton_transport(args=None)
+    
+    make_transport_args(parser)
+
+DATA
+    F32 = 3
+    IGNORE = 4
+    INT16 = 1
+    INT32 = 2
+    INT8 = 0
+    TRANSPORT_FACTORIES = [<moteus.moteus.FdcanusbFactory object>, <moteus...
+    __all__ = ['aiostream', 'make_transport_args', 'get_singleton_transpor...
+
+FILE
+    /home/robbus/git/ODriveResources/backend/.venv/lib/python3.11/site-packages/moteus/__init__.py
+
+
