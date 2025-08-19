@@ -5,8 +5,8 @@ uvicorn[standard]>=0.23.0
 # CAN bus support
 python-can>=4.2.0
 
-# ODrive CANSimple transport
-# (no extra deps beyond python-can)
+# ODrive
+odrive>=0.6.10.post0
 
 # Moteus support
 moteus>=0.3.87

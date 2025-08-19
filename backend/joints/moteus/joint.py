@@ -2,8 +2,6 @@ import math
 import logging
 import moteus
 from backend.joints.base import Joint
-from .transport import MoteusBus
-from moteus import Fdcanusb, Controller
 from backend.joints.moteus.calibrator import MoteusCalibrator
 import asyncio
 

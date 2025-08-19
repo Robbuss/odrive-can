@@ -1,8 +1,5 @@
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
-from backend.can_bus import CANBus
-from backend.joints.odrive.transport import ODriveCAN
 from backend.joints.odrive.joint import ODriveJoint
-from backend.joints.moteus.transport import MoteusBus
 from backend.joints.moteus.joint import MoteusJoint
 from backend.joints.base import Joint
 
@@ -10,15 +7,11 @@ from typing import Dict
 
 router = APIRouter(prefix="/joints", tags=["joints"])
 
-# Initialize two separate CAN bus instances
-odrive_bus = CANBus(iface="can0")
-moteus_bus = CANBus(iface="can1")
-
 # Register joints by name, each on its own CAN bus
 joints: Dict[str, Joint] = {
     # ODrive on can0, node 0
-    "joint1": ODriveJoint(ODriveCAN(iface="can0", node=0)),
-    "joint2": MoteusJoint(node_id=1),
+    # "joint1": ODriveJoint(serial_number="385F324D3037", node_id=0),
+    "joint1": MoteusJoint(node_id=1),
 }
 
 @router.get("/index", summary="List all configured joints")

@@ -1,0 +1,386 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Robotic Arm API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/joints/index": {
+      "get": {
+        "tags": [
+          "joints"
+        ],
+        "summary": "List all configured joints",
+        "description": "Return a list of all registered joints and their metadata.",
+        "operationId": "list_joints_joints_index_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/joints/{joint_name}/move": {
+      "post": {
+        "tags": [
+          "joints"
+        ],
+        "summary": "Move Joint",
+        "operationId": "move_joint_joints__joint_name__move_post",
+        "parameters": [
+          {
+            "name": "joint_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Joint Name"
+            }
+          },
+          {
+            "name": "position",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "title": "Position"
+            }
+          },
+          {
+            "name": "velocity",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "title": "Velocity"
+            }
+          },
+          {
+            "name": "accel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "title": "Accel"
+            }
+          },
+          {
+            "name": "hold",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Hold"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/joints/{joint_name}/stop": {
+      "post": {
+        "tags": [
+          "joints"
+        ],
+        "summary": "Stop Joint",
+        "operationId": "stop_joint_joints__joint_name__stop_post",
+        "parameters": [
+          {
+            "name": "joint_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Joint Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/joints/{joint_name}/status": {
+      "get": {
+        "tags": [
+          "joints"
+        ],
+        "summary": "Status Joint",
+        "operationId": "status_joint_joints__joint_name__status_get",
+        "parameters": [
+          {
+            "name": "joint_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Joint Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/joints/arm-all": {
+      "post": {
+        "tags": [
+          "joints"
+        ],
+        "summary": "Arm All",
+        "operationId": "arm_all_joints_arm_all_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/joints/disarm-all": {
+      "post": {
+        "tags": [
+          "joints"
+        ],
+        "summary": "Disarm All",
+        "operationId": "disarm_all_joints_disarm_all_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/joints/{joint_name}/calibrate": {
+      "post": {
+        "tags": [
+          "joints"
+        ],
+        "summary": "Calibrate Joint",
+        "operationId": "calibrate_joint_joints__joint_name__calibrate_post",
+        "parameters": [
+          {
+            "name": "joint_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Joint Name"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 3,
+              "title": "State"
+            }
+          },
+          {
+            "name": "save_config",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Save Config"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/joints/{joint_name}/configure": {
+      "post": {
+        "tags": [
+          "joints"
+        ],
+        "summary": "Configure Joint",
+        "operationId": "configure_joint_joints__joint_name__configure_post",
+        "parameters": [
+          {
+            "name": "joint_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Joint Name"
+            }
+          },
+          {
+            "name": "save_config",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "If true, save to NVM & reboot",
+              "default": false,
+              "title": "Save Config"
+            },
+            "description": "If true, save to NVM & reboot"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

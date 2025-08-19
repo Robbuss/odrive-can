@@ -135,7 +135,6 @@ candump can0 -xct z -n 10
 ```
 project-root/
 ├── backend/
-│   ├── can_bus.py
 │   ├── odrive/            # ODrive CAN transport
 │   ├── moteus/            # Moteus serial transport
 │   ├── joints/            # Joint interface & implementations

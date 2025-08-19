@@ -133,7 +133,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { client as apiClient } from '~/client/client.gen'
+import * as api from '~/client/sdk.gen'
+
+apiClient.setConfig({ baseUrl: '/api' })
 
 interface JointInfo {
   id: string
@@ -152,73 +155,84 @@ interface CanEntry { ts: number; id: string; data: string }
 const joints = ref<JointInfo[]>([])
 const canLog = reactive({
   odrive: [] as CanEntry[],
-  moteus: [] as CanEntry[]
+  moteus: [] as CanEntry[],
 })
 
 let wsLog: Record<'odrive'|'moteus', WebSocket|undefined> = {
   odrive: undefined,
-  moteus: undefined
+  moteus: undefined,
 }
 
-// Fetch joint list and kick off their WS streams
+// Fetch joint list and kick off their WS streams (OpenAPI client)
 async function loadJoints() {
-  const res = await fetch('/api/joints/index')
-  const list: JointInfo[] = await res.json()
+  const res = await api.listJointsJointsIndexGet()
+  const list = res.data ?? []
+
   joints.value = list.map(j => ({
-    ...j,
+    // j has { id, type, initialized } from your FastAPI endpoint
+    ...(j as { id: string; type: 'odrive'|'moteus'; initialized: boolean }),
     position: 0,
     velocity: 0,
     accel: 0,
     hold: true,
     running: false,
-    ws: undefined
+    ws: undefined,
   }))
 
-  const host = window.location.hostname || "127.0.0.1";
-  // open one WS per joint
-  joints.value.forEach(j => {
-    const socket = new WebSocket(`ws://${host}:8000/ws/joint/${j.id}`)
-    socket.onmessage = ev => {
-      const d = JSON.parse(ev.data)
-      j.position = d.position ?? j.position
-      j.running  = d.running
-    }
-    j.ws = socket
-  })
+  // const host = window.location.hostname || '127.0.0.1'
+  // // open one WS per joint
+  // joints.value.forEach(j => {
+  //   const socket = new WebSocket(`ws://${host}:8000/ws/joint/${j.id}`)
+  //   socket.onmessage = ev => {
+  //     const d = JSON.parse(ev.data)
+  //     j.position = d.position ?? j.position
+  //     j.running  = d.running
+  //   }
+  //   j.ws = socket
+  // })
 }
 
 // Global arm/disarm
 async function armAll() {
-  console.log('Arm All:', await (await fetch('/api/joints/arm-all', { method: 'POST' })).json())
+  const r = await api.armAllJointsArmAllPost()
+  console.log('Arm All:', r.data)
 }
 async function disarmAll() {
-  console.log('Disarm All:', await (await fetch('/api/joints/disarm-all', { method: 'POST' })).json())
+  const r = await api.disarmAllJointsDisarmAllPost()
+  console.log('Disarm All:', r.data)
 }
 
 // Per-joint actions
 async function move(j: JointInfo) {
-  await fetch(
-    `/api/joints/${j.id}/move?position=${j.position}&velocity=${j.velocity}&accel=${j.accel}&hold=${j.hold}`,
-    { method: 'POST' }
-  )
+  await api.moveJointJointsJointNameMovePost({
+    path: { joint_name: j.id },
+    query: {
+      position: j.position,
+      // Pass optional params only if you want them considered; else omit.
+      // If 0 has meaning for you, keep as-is; otherwise gate with undefined.
+      velocity: j.velocity,
+      accel: j.accel,
+      hold: j.hold,
+    },
+  })
 }
 
 async function stop(j: JointInfo) {
-  await fetch(`/api/joints/${j.id}/stop`, { method: 'POST' })
+  await api.stopJointJointsJointNameStopPost({ path: { joint_name: j.id } })
   j.running = false
 }
 
 async function calibrate(j: JointInfo) {
-  await fetch(`/api/joints/${j.id}/calibrate`, { method: 'POST' })
+  await api.calibrateJointJointsJointNameCalibratePost({ path: { joint_name: j.id } })
 }
 
 async function configure(j: JointInfo) {
-  await fetch(`/api/joints/${j.id}/configure`, { method: 'POST' })
+  await api.configureJointJointsJointNameConfigurePost({ path: { joint_name: j.id } })
 }
 
-// CAN log start/stop
+// CAN log start/stop (WebSockets not part of OpenAPI; keep as-is)
 function startCanLog(bus: 'odrive'|'moteus') {
-  const host = window.location.hostname || "127.0.0.1";
+  const host = window.location.hostname || '127.0.0.1'
   if (wsLog[bus]) return
   const socket = new WebSocket(`ws://${host}:8000/ws/canlog/${bus}`)
   socket.onmessage = ev => {
@@ -237,11 +251,11 @@ function stopCanLog(bus: 'odrive'|'moteus') {
 // Lifecycle
 onMounted(() => {
   loadJoints()
-  startCanLog('odrive')
+  // startCanLog('odrive')
 })
 
 onUnmounted(() => {
   joints.value.forEach(j => j.ws?.close())
-  stopCanLog('odrive')
+  // stopCanLog('odrive')
 })
 </script>
