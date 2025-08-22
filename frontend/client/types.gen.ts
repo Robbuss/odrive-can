@@ -11,6 +11,263 @@ export type HttpValidationError = {
 };
 
 /**
+ * JointConfigureBody
+ */
+export type JointConfigureBody = {
+    /**
+     * Kp
+     */
+    kp?: number | null;
+    /**
+     * Ki
+     */
+    ki?: number | null;
+    /**
+     * Kd
+     */
+    kd?: number | null;
+    /**
+     * Min Pos
+     */
+    min_pos?: number | null;
+    /**
+     * Max Pos
+     */
+    max_pos?: number | null;
+    /**
+     * Save Config
+     */
+    save_config?: boolean | null;
+};
+
+/**
+ * RollupPoint
+ */
+export type RollupPoint = {
+    /**
+     * Bucket
+     */
+    bucket: string;
+    /**
+     * Joint Id
+     */
+    joint_id: string;
+    /**
+     * Run Id
+     */
+    run_id?: number | null;
+    /**
+     * Avg Position
+     */
+    avg_position?: number | null;
+    /**
+     * Min Position
+     */
+    min_position?: number | null;
+    /**
+     * Max Position
+     */
+    max_position?: number | null;
+    /**
+     * Avg Velocity
+     */
+    avg_velocity?: number | null;
+    /**
+     * Avg Torque
+     */
+    avg_torque?: number | null;
+    /**
+     * Avg Supply V
+     */
+    avg_supply_v?: number | null;
+};
+
+/**
+ * RunStopOut
+ */
+export type RunStopOut = {
+    /**
+     * Run Id
+     */
+    run_id: number;
+    /**
+     * Ended At
+     */
+    ended_at: string;
+};
+
+/**
+ * SampleIn
+ */
+export type SampleIn = {
+    /**
+     * Ts
+     */
+    ts?: string | null;
+    /**
+     * Position
+     */
+    position: number;
+    /**
+     * Velocity
+     */
+    velocity?: number | null;
+    /**
+     * Accel
+     */
+    accel?: number | null;
+    /**
+     * Torque
+     */
+    torque?: number | null;
+    /**
+     * Supply V
+     */
+    supply_v?: number | null;
+    /**
+     * Motor Temp
+     */
+    motor_temp?: number | null;
+    /**
+     * Controller Temp
+     */
+    controller_temp?: number | null;
+    /**
+     * Mode
+     */
+    mode?: string | null;
+    /**
+     * Fault Code
+     */
+    fault_code?: number | null;
+    /**
+     * Error Flags
+     */
+    error_flags?: number | null;
+    /**
+     * Target Position
+     */
+    target_position?: number | null;
+    /**
+     * Target Velocity
+     */
+    target_velocity?: number | null;
+    /**
+     * Target Accel
+     */
+    target_accel?: number | null;
+    /**
+     * Target Torque
+     */
+    target_torque?: number | null;
+};
+
+/**
+ * SampleOut
+ */
+export type SampleOut = {
+    /**
+     * Ts
+     */
+    ts: string;
+    /**
+     * Position
+     */
+    position: number;
+    /**
+     * Velocity
+     */
+    velocity?: number | null;
+    /**
+     * Accel
+     */
+    accel?: number | null;
+    /**
+     * Torque
+     */
+    torque?: number | null;
+    /**
+     * Supply V
+     */
+    supply_v?: number | null;
+    /**
+     * Motor Temp
+     */
+    motor_temp?: number | null;
+    /**
+     * Controller Temp
+     */
+    controller_temp?: number | null;
+    /**
+     * Mode
+     */
+    mode?: string | null;
+    /**
+     * Fault Code
+     */
+    fault_code?: number | null;
+    /**
+     * Error Flags
+     */
+    error_flags?: number | null;
+    /**
+     * Target Position
+     */
+    target_position?: number | null;
+    /**
+     * Target Velocity
+     */
+    target_velocity?: number | null;
+    /**
+     * Target Accel
+     */
+    target_accel?: number | null;
+    /**
+     * Target Torque
+     */
+    target_torque?: number | null;
+    /**
+     * Joint Id
+     */
+    joint_id: string;
+    /**
+     * Run Id
+     */
+    run_id?: number | null;
+};
+
+/**
+ * StartRunBody
+ */
+export type StartRunBody = {
+    /**
+     * Label
+     */
+    label?: string | null;
+    /**
+     * Meta
+     */
+    meta?: {
+        [key: string]: unknown;
+    } | null;
+};
+
+/**
+ * TelemetryPayload
+ */
+export type TelemetryPayload = {
+    /**
+     * Run Id
+     */
+    run_id?: number | null;
+    sample?: SampleIn | null;
+    /**
+     * Samples
+     */
+    samples?: Array<SampleIn> | null;
+};
+
+/**
  * ValidationError
  */
 export type ValidationError = {
@@ -67,6 +324,10 @@ export type MoveJointJointsJointNameMovePostData = {
          * Hold
          */
         hold?: boolean;
+        /**
+         * Run Id
+         */
+        run_id?: number | null;
     };
     url: '/joints/{joint_name}/move';
 };
@@ -208,7 +469,35 @@ export type CalibrateJointJointsJointNameCalibratePostResponses = {
     200: unknown;
 };
 
-export type ConfigureJointJointsJointNameConfigurePostData = {
+export type ConfigureJointData = {
+    body: JointConfigureBody;
+    path: {
+        /**
+         * Joint Name
+         */
+        joint_name: string;
+    };
+    query?: never;
+    url: '/joints/{joint_name}/configure';
+};
+
+export type ConfigureJointErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ConfigureJointError = ConfigureJointErrors[keyof ConfigureJointErrors];
+
+export type ConfigureJointResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type GetTelemetrySamplesData = {
     body?: never;
     path: {
         /**
@@ -218,30 +507,164 @@ export type ConfigureJointJointsJointNameConfigurePostData = {
     };
     query?: {
         /**
-         * Save Config
-         * If true, save to NVM & reboot
+         * Limit
          */
-        save_config?: boolean;
+        limit?: number;
+        /**
+         * Since Seconds
+         */
+        since_seconds?: number | null;
+        /**
+         * Run Id
+         */
+        run_id?: number | null;
     };
-    url: '/joints/{joint_name}/configure';
+    url: '/telemetry/{joint_name}/samples';
 };
 
-export type ConfigureJointJointsJointNameConfigurePostErrors = {
+export type GetTelemetrySamplesErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type ConfigureJointJointsJointNameConfigurePostError = ConfigureJointJointsJointNameConfigurePostErrors[keyof ConfigureJointJointsJointNameConfigurePostErrors];
+export type GetTelemetrySamplesError = GetTelemetrySamplesErrors[keyof GetTelemetrySamplesErrors];
 
-export type ConfigureJointJointsJointNameConfigurePostResponses = {
+export type GetTelemetrySamplesResponses = {
+    /**
+     * Response Gettelemetrysamples
+     * Successful Response
+     */
+    200: Array<SampleOut>;
+};
+
+export type GetTelemetrySamplesResponse = GetTelemetrySamplesResponses[keyof GetTelemetrySamplesResponses];
+
+export type PostTelemetrySamplesData = {
+    body: TelemetryPayload;
+    path: {
+        /**
+         * Joint Name
+         */
+        joint_name: string;
+    };
+    query?: never;
+    url: '/telemetry/{joint_name}/samples';
+};
+
+export type PostTelemetrySamplesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PostTelemetrySamplesError = PostTelemetrySamplesErrors[keyof PostTelemetrySamplesErrors];
+
+export type PostTelemetrySamplesResponses = {
     /**
      * Successful Response
      */
     200: unknown;
 };
 
+export type GetTelemetryRollupData = {
+    body?: never;
+    path: {
+        /**
+         * Joint Name
+         */
+        joint_name: string;
+    };
+    query?: {
+        /**
+         * Minutes
+         */
+        minutes?: number;
+        /**
+         * Run Id
+         */
+        run_id?: number | null;
+    };
+    url: '/telemetry/{joint_name}/rollup';
+};
+
+export type GetTelemetryRollupErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetTelemetryRollupError = GetTelemetryRollupErrors[keyof GetTelemetryRollupErrors];
+
+export type GetTelemetryRollupResponses = {
+    /**
+     * Response Gettelemetryrollup
+     * Successful Response
+     */
+    200: Array<RollupPoint>;
+};
+
+export type GetTelemetryRollupResponse = GetTelemetryRollupResponses[keyof GetTelemetryRollupResponses];
+
+export type StartRunData = {
+    /**
+     * Body
+     */
+    body?: StartRunBody | null;
+    path?: never;
+    query?: never;
+    url: '/runs/start';
+};
+
+export type StartRunErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type StartRunError = StartRunErrors[keyof StartRunErrors];
+
+export type StartRunResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type StopRunData = {
+    body?: never;
+    path: {
+        /**
+         * Run Id
+         */
+        run_id: number;
+    };
+    query?: never;
+    url: '/runs/{run_id}/stop';
+};
+
+export type StopRunErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type StopRunError = StopRunErrors[keyof StopRunErrors];
+
+export type StopRunResponses = {
+    /**
+     * Successful Response
+     */
+    200: RunStopOut;
+};
+
+export type StopRunResponse = StopRunResponses[keyof StopRunResponses];
+
 export type ClientOptions = {
-    baseUrl: `${string}://${string}` | (string & {});
+    baseUrl: 'http://backend:8000' | (string & {});
 };

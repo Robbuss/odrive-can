@@ -1,0 +1,84 @@
+services:
+  db:
+    image: timescale/timescaledb:latest-pg16
+    container_name: robot_db
+    environment:
+      POSTGRES_USER: robot
+      POSTGRES_PASSWORD: robot
+      POSTGRES_DB: robot
+      NO_TS_TUNE: "true"    # disable timescaledb-tune on init (Pi cgroup quirk)
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U robot -d robot"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: robot_backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://robot:robot@db:5432/robot
+    ports:
+      - "8000:8000"
+    group_add:
+      - dialout
+    devices:
+      - /dev/serial/by-id/usb-mjbots_fdcanusb_E6F9844A-if00:/dev/serial/by-id/usb-mjbots_fdcanusb_E6F9844A-if00
+      - /dev/ttyACM1:/dev/ttyACM1
+    volumes:
+      - ./backend:/app/backend:rw
+      - ./alembic.ini:/app/alembic.ini:rw
+    command: >
+      sh -c "
+        alembic upgrade head &&
+        uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+        --graceful-timeout 1 --timeout-keep-alive 5
+      "
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: robot_frontend
+    depends_on:
+      - backend
+    environment:
+      CHOKIDAR_USEPOLLING: "1"
+    ports:
+      - "3000:3000"
+    working_dir: /app
+    volumes:
+      - ./frontend:/app:rw
+    command: >
+      sh -c "
+        npm install &&
+        npx wait-on http://backend:8000/openapi.json &&
+        npx @hey-api/openapi-ts &&
+        npm run dev -- -p 3000 --host 0.0.0.0
+      "
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: robot_pgadmin
+    restart: unless-stopped
+    depends_on:
+      - db
+    ports:
+      - "8080:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+
+volumes:
+  db-data:
+  pgadmin-data:

@@ -4,6 +4,9 @@ import moteus
 from backend.joints.base import Joint
 from backend.joints.moteus.calibrator import MoteusCalibrator
 import asyncio
+from typing import Optional
+import time
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -16,12 +19,27 @@ class MoteusJoint(Joint):
         qr = moteus.QueryResolution()
         qr.mode     = moteus.INT8
         qr.position = moteus.F32
+        qr.velocity = moteus.F32
+        qr.voltage = moteus.F32
+        qr.trajectory_complete = moteus.INT8
+        qr.fault = moteus.INT8
         self.node_id = node_id
         self._ctrl = moteus.Controller(id=node_id, query_resolution=qr)
         self._running = False
+        self._last_status_warn = 0.0  # rate-limit log
+
+        # NEW: serialize hardware access + track active command
+        self._lock = asyncio.Lock()
+        self._current_cmd: Optional[dict] = None  # {"cmd_id", "target", "run_id"}
 
     def initialize(self) -> None:
         """Open the underlying bus/controller if not already open."""
+
+    def get_current_cmd(self) -> Optional[dict]:
+        return self._current_cmd
+
+    def clear_current_cmd(self) -> None:
+        self._current_cmd = None
 
     async def move(
         self,
@@ -29,64 +47,237 @@ class MoteusJoint(Joint):
         velocity: float = None,
         accel: float = None,
         hold: bool = True,
+        cmd_id: str | None = None,
+        run_id: int | None = None,
     ) -> dict:
         """
-        Move to an absolute `position` (turns), with optional
-        `velocity` (turns/s), `accel` (turns/s²), and
-        `hold` (keep holding until explicitly stopped).
+        Non-blocking move to absolute `position` (turns). The sampler will stream telemetry.
         """
         print(f"Moving joint {self.node_id} to position {position}, velocity {velocity}, accel {accel}, hold {hold}")
-        # 1) Stop any prior motion
-        await self._ctrl.set_stop()
-        await asyncio.sleep(0.05)
+        async with self._lock:
+            # 1) Stop any prior motion briefly
+            # await self._ctrl.set_stop()
+            # await asyncio.sleep(0.02)
 
-        # 2) Resynchronize capture
-        await self._ctrl.set_recapture_position_velocity()
+            # 2) Resynchronize capture
+            await self._ctrl.set_recapture_position_velocity()
 
-        # 3) Read current position
-        status = await self._ctrl.query()
+            # 3) Read current position (radians -> turns)
+            status = await self._ctrl.query()
+            start_turns = status.values[moteus.Register.POSITION] / (2 * math.pi)
 
-        # 4) Build and send the absolute-position command
-        result = await self._ctrl.set_position_wait_complete(
-            position=position,
-            velocity=math.nan,
-            velocity_limit=velocity if velocity is not None else math.nan,
-            accel_limit=accel if accel is not None else math.nan,
-            query=True,
-        )
+            vlim = velocity if velocity is not None else 1.0
+            alim = accel if accel is not None else 1.0
+            max_torque = float(os.getenv("MOTEUS_MAX_TORQUE", "3.5"))  # tune if needed
+
+            print(f"Setting position to {position}, velocity {velocity}, accel {accel}, hold {hold}")
+
+            # 4) Fire-and-forget position command (NO wait_complete)
+            await self._ctrl.set_position_wait_complete(
+                position=position,
+                velocity=math.nan, # control the motor by velocity_limit instead of giving it a velocity (it will keep spinning after the move if we use veloicty instead of velocity_limit) 
+                velocity_limit=vlim,
+                accel_limit=alim,
+                maximum_torque=math.nan, #max_torque,
+                feedforward_torque=math.nan,
+                query=True,
+            )
+            self._running = True
+
+            # Track active command for done-detection in sampler
+            self._current_cmd = {
+                "cmd_id": cmd_id,
+                "target": position,
+                "run_id": run_id,
+                "hold": hold,
+            }
 
         return {
-            "target_turns":   position,
-            "start_turns":    status.values[moteus.Register.POSITION],
-            "end_turns":      result.values[moteus.Register.POSITION],
-            "requested_vel":  velocity,
-            "requested_acc":  accel,
-        }   
-        
+            "target_turns": position,
+            "start_turns":  start_turns,
+            "requested_vel": velocity,
+            "requested_acc": accel,
+            "cmd_id": cmd_id,
+        }
+
     async def stop(self) -> None:
         """Stop movement (brake)."""
         try:
-            await self._ctrl.set_stop()
+            async with self._lock:
+                await self._ctrl.set_stop()
         finally:
             self._running = False
+            self._current_cmd = None
 
-    async def status(self) -> dict:
-        """Read and return current status."""
+    async def get_control_values(
+        self,
+        *,
+        use_cache: bool = False,   # default OFF for correctness
+        ttl_sec: float = 10.0,
+    ):
+        """
+        Returns (position_min, position_max, kp, ki, kd) as floats or None.
+        Robust against 'key = value', 'key value', or 'value' formats.
+        Flushes the diagnostic stream before each command to avoid stale bytes.
+        """
+
+        now = time.monotonic()
+        if use_cache and hasattr(self, "_control_cache_time"):
+            if (now - getattr(self, "_control_cache_time", 0.0)) < ttl_sec:
+                return getattr(self, "_control_cache")
+
+        async with self._lock:
+            if not hasattr(self, "_diag_stream") or self._diag_stream is None:
+                self._diag_stream = moteus.Stream(self._ctrl)
+
+            # optional debug: set MOTEUS_DIAG_DEBUG=1 to log raw replies
+            debug = os.getenv("MOTEUS_DIAG_DEBUG") == "1"
+
+            async def _flush():
+                # flush any residual unread data
+                try:
+                    await self._diag_stream.flush_read()
+                except Exception:
+                    pass
+
+            def _parse_first_float(b: bytes) -> float | None:
+                # Take the LAST non-empty line (diagnostic often echoes prompts/blank lines)
+                lines = [ln.strip() for ln in b.splitlines() if ln.strip()]
+                if not lines:
+                    return None
+                s = lines[-1].decode("latin1", "ignore")
+                # If there is an '=', keep the RHS; else keep whole line
+                if "=" in s:
+                    s = s.split("=", 1)[1].strip()
+                # Extract the first numeric token (handles nan, inf, scientific)
+                import re
+                m = re.search(r'(?i)(nan|[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?|inf|-inf)', s)
+                if not m:
+                    return None
+                token = m.group(1)
+                try:
+                    # float('nan') / 'inf' fine in Python
+                    return float(token)
+                except Exception:
+                    return None
+
+            async def _get_float(key: str) -> float | None:
+                await _flush()
+                cmd = ("conf get " + key).encode("ascii")
+                b = await self._diag_stream.command(cmd, allow_any_response=True)
+                if debug:
+                    logger.debug("diag %s -> %r", key, b)
+                # Some errors come as 'ERR ...' lines — return None in that case
+                if b.startswith(b"ERR"):
+                    return None
+                return _parse_first_float(b)
+
+            # Read each key individually and robustly (not in 100 Hz path anyway)
+            pmin = await _get_float("servopos.position_min")
+            pmax = await _get_float("servopos.position_max")
+            kp   = await _get_float("servo.pid_position.kp")
+            ki   = await _get_float("servo.pid_position.ki")
+            kd   = await _get_float("servo.pid_position.kd")
+
+            result = (pmin, pmax, kp, ki, kd)
+
+            if use_cache:
+                self._control_cache = result
+                self._control_cache_time = now
+
+            return result
+
+    async def set_control_values(  
+        self,  
+        kp: float,  
+        ki: float,  
+        kd: float,  
+        min_pos: float,  
+        max_pos: float,  
+        *,  
+        persist: bool = False,  
+    ):  
+        """  
+        Set servopos limits (turns) and PID gains on the controller efficiently.  
+        """  
+        # Reuse/create a diagnostic stream  
+        if not hasattr(self, "_diag_stream") or self._diag_stream is None:  
+            self._diag_stream = moteus.Stream(self._ctrl)  
+    
+        stream = self._diag_stream  
+    
+        def _fmt(x: float) -> str:  
+            return f"{float(x):.9g}"  
+    
+        # Prepare all config commands as a batch  
+        commands = [  
+            f"conf set servopos.position_min {_fmt(min_pos)}",  
+            f"conf set servopos.position_max {_fmt(max_pos)}",  
+            f"conf set servo.pid_position.kp {_fmt(kp)}",  
+            f"conf set servo.pid_position.ki {_fmt(ki)}",  
+            f"conf set servo.pid_position.kd {_fmt(kd)}",
+            f"conf write"  
+        ]  
+    
+        # Send commands efficiently without individual flushing  
+        errors = []  
+        for cmd in commands:  
+            try:  
+                await stream.command(cmd.encode('ascii'))  
+            except moteus.CommandError as e:  
+                errors.append(f"{cmd}: {e}")  
+    
+        # Persist if requested  
+        if persist:  
+            try:  
+                await stream.command(b"conf write")  
+            except moteus.CommandError as e:  
+                errors.append(f"conf write: {e}")  
+    
+        if errors:  
+            raise RuntimeError(f"Configuration errors: {'; '.join(errors)}")  
+    
+        return {  
+            "kp": float(kp),  
+            "ki": float(ki),  
+            "kd": float(kd),  
+            "min_pos": float(min_pos),  
+            "max_pos": float(max_pos),  
+            "persisted": bool(persist),  
+        }
+
+    async def status(self, *, include_control: bool = False) -> dict:
         try:
-            status = await self._ctrl.query()
-        except Exception:
-            logger.exception("Status query failed")
+            async with self._lock:
+                st = await self._ctrl.query()
+                vals = getattr(st, "values", {})
+        except Exception as e:
+            now = time.monotonic()
+            if now - self._last_status_warn > 5.0:
+                logger.warning("Status query failed (likely offline): %s", e, exc_info=False)
+                self._last_status_warn = now
             raise
 
-        turns = status.values[moteus.Register.POSITION] / (2 * math.pi)
-        vel = status.values[moteus.Register.VELOCITY] / (2 * math.pi)
-        voltage = status.values[moteus.Register.V_BUS]
-        return {
-            'position': turns,
-            'velocity': vel,
-            'voltage': voltage,
-            'running': self._running,
+        pos_raw = vals.get(moteus.Register.POSITION)
+        vel_raw = vals.get(moteus.Register.VELOCITY)
+        position = (pos_raw / (2 * math.pi)) if pos_raw is not None else None
+        velocity = (vel_raw / (2 * math.pi)) if vel_raw is not None else None
+
+        resp = {
+            "position": position,                                  # turns
+            "velocity": velocity,                                  # rev/s
+            "supply_v": vals.get(moteus.Register.VOLTAGE),
+            "running": self._running,
+            "fault": vals.get(moteus.Register.FAULT),
+            "trajectory_complete": vals.get(moteus.Register.TRAJECTORY_COMPLETE),
         }
+
+        if include_control:
+            # cheap due to TTL cache inside get_control_values()
+            pmin, pmax, kp, ki, kd = await self.get_control_values(use_cache=True)
+            resp.update({"pos_min": pmin, "pos_max": pmax, "kp": kp, "ki": ki, "kd": kd})
+
+        return resp
 
     async def disarm(self) -> None:
         """Disarm the motor and shutdown bus."""
@@ -95,17 +286,19 @@ class MoteusJoint(Joint):
         self._running = False
 
     async def calibrate(self, *args, **kwargs) -> dict:
-        """
-        Perform a calibration sequence on the Moteus controller.
-        """
         self.initialize()
         calibrator = MoteusCalibrator(self._ctrl, node_id=self.node_id)
         result = await calibrator.run()
         self._running = False
         return result
 
-    async def configure(self, *args, **kwargs) -> dict:
+    async def configure(self, kp: float, ki: float, kd: float, min_pos: float, max_pos: float) -> None:
+        """ Set the control values for this joint, values that can be set are:
+        - kp
+        - ki
+        - kd
+        - min_pos
+        - max_pos
         """
-        Moteus has no config-restore by default.
-        """
-        return {'status': 'n/a'}
+        print(f"Configuring joint {self.node_id} with kp {kp}, ki {ki}, kd {kd}, min_pos {min_pos}, max_pos {max_pos}")
+        return await self.set_control_values(kp, ki, kd, min_pos, max_pos)

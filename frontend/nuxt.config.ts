@@ -6,19 +6,12 @@ export default defineNuxtConfig({
   vite: {
     server: {
       proxy: {
-        // Proxy any /api/... to http://127.0.0.1:8000/...
-        '/api': {
-          target: 'http://127.0.0.1:8000',  // use IPv4
+        '^/api/(?!_nuxt_icon/)': {
+          target: 'http://backend:8000', 
           changeOrigin: true,
-          rewrite: path => path.replace(/^\/api/, ''), 
-          ws: true
+          rewrite: p => p.replace(/^\/api/, ''),
+          ws: true,                    
         },
-        // WebSocket proxy (if needed)
-        '/ws': {
-          target: 'ws://127.0.0.1:8000',
-          ws: true,
-          changeOrigin: true,
-        }
       }
     }
   }

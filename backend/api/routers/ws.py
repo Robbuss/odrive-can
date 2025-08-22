@@ -1,71 +1,67 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-import json, asyncio
+import asyncio, json
+from datetime import datetime, timezone
 
 from backend.api.ws_manager import manager
+from backend.joints.sampler import get_last_snapshot
 from backend.api.routers.joints import joints
 
 router = APIRouter(prefix="/ws", tags=["ws"])
 
-# @router.websocket("/joint/{joint_name}")
-# async def joint_status_ws(websocket: WebSocket, joint_name: str):
-#     # Validate joint
-#     if joint_name not in joints:
-#         await websocket.close(code=1008)
-#         return
+@router.websocket("/joint/{joint_name}")
+async def ws_joint(websocket: WebSocket, joint_name: str):
+    await websocket.accept()
+    await manager.connect(joint_name, websocket)
 
-#     await manager.connect(joint_name, websocket)
-#     # Determine update frequency (default 10 Hz)
-#     try:
-#         freq = float(websocket.query_params.get('freq', '10'))
-#         if freq <= 0:
-#             freq = 10.0
-#     except ValueError:
-#         freq = 10.0
-#     interval = 1.0 / freq
-#     last_payload = ''
+    try:
+        # Send last snapshot or a quick probe
+        snap = get_last_snapshot(joint_name)
+        if snap:
+            await websocket.send_text(json.dumps(snap))
+        else:
+            try:
+                st = await joints[joint_name].status()
+                now = datetime.now(timezone.utc).isoformat()
+                await websocket.send_text(json.dumps({"type": "status", "joint_id": joint_name, "online": True}))
+                await websocket.send_text(json.dumps({
+                    "type": "telemetry", "joint_id": joint_name, "ts": now,
+                    "position": st.get("position"), "velocity": st.get("velocity"),
+                    "accel": None, "torque": None, "supply_v": st.get("supply_v"),
+                    "motor_temp": None, "controller_temp": None,
+                    "mode": None, "fault_code": st.get("fault"), "error_flags": 0,
+                    "target_position": None, "target_velocity": None,
+                    "target_accel": None, "target_torque": None,
+                }))
+            except Exception as e:
+                await websocket.send_text(json.dumps({
+                    "type": "status", "joint_id": joint_name, "online": False, "reason": str(e)
+                }))
 
-#     try:
-#         while True:
-#             # Retrieve joint status
-#             try:
-#                 status = joints[joint_name].status()
-#             except Exception:
-#                 status = {"position": None, "running": False}
+        # Race shutdown vs client message; DRAIN task results to suppress warnings
+        t_shutdown = asyncio.create_task(manager.shutdown_event.wait())
+        t_recv = asyncio.create_task(websocket.receive_text())
+        done, pending = await asyncio.wait({t_shutdown, t_recv}, return_when=asyncio.FIRST_COMPLETED)
 
-#             payload = json.dumps(status)
-#             if payload != last_payload:
-#                 await manager.broadcast(joint_name, payload)
-#                 last_payload = payload
+        # Cancel the loser(s) and DRAIN everything
+        for t in pending:
+            t.cancel()
+        # Drain completed tasks (consume exceptions)
+        for t in done:
+            try:
+                t.result()
+            except WebSocketDisconnect:
+                pass
+            except asyncio.CancelledError:
+                pass
+            except Exception:
+                pass
+        # Drain cancelled tasks to swallow CancelledError
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
 
-#             await asyncio.sleep(interval)
-#     except WebSocketDisconnect:
-#         manager.disconnect(joint_name, websocket)
-#     except Exception:
-#         await websocket.close(code=1011)
-
-
-# @router.websocket("/canlog/{bus_name}")
-# async def can_log_ws(websocket: WebSocket, bus_name: str):
-#     """
-#     Stream every raw CAN frame as JSON. Select bus via bus_name ("odrive" or "moteus").
-#     JSON format: { ts: float, id: '0x123', data: 'deadbeef' }
-#     """
-#     # Accept connection
-#     await websocket.accept()
-#     loop = asyncio.get_event_loop()
-
-#     try:
-#         while True:
-#             # Blocking recv in thread pool
-#             msg = None
-#             if not msg:
-#                 continue
-#             await websocket.send_json({
-#                 "ts":   msg.timestamp,
-#                 "id":   hex(msg.arbitration_id),
-#                 "data": msg.data.hex()
-#             })
-#     except WebSocketDisconnect:
-#         return
-#     except Exception:
-#         await websocket.close(code=1011)
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        pass
+    finally:
+        manager.disconnect(joint_name, websocket)

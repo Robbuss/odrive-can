@@ -1,4 +1,4 @@
 export default {
-  input: '../openapi.json',
+  input: 'http://backend:8000/openapi.json',
   output: 'client',
 } 

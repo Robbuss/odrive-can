@@ -1,6 +1,10 @@
 # FastAPI + WebSocket server
-fastapi[all]>=0.95.0
-uvicorn[standard]>=0.23.0
+fastapi>=0.111
+uvicorn[standard]>=0.30
+SQLAlchemy>=2.0
+asyncpg>=0.29
+alembic>=1.13
+pydantic>=2.7
 
 # CAN bus support
 python-can>=4.2.0

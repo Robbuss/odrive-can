@@ -1,130 +1,126 @@
 <template>
-  <UContainer class="py-6">
-    <!-- Global Arm/Disarm -->
-    <div class="max-w-4xl mx-auto mb-6 flex justify-center space-x-4">
-      <UButton color="warning" @click="armAll">Arm All</UButton>
-      <UButton color="success" @click="disarmAll">Disarm All</UButton>
-    </div>
+  <UContainer class="py-6 space-y-6">
+    <!-- Top controls -->
+    <div class="max-w-5xl mx-auto flex flex-col gap-4">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <UButton color="warning" variant="soft" @click="armAllJointsArmAllPost()">Arm All</UButton>
+          <UButton color="success" variant="soft" @click="disarmAllJointsDisarmAllPost()">Disarm All</UButton>
+        </div>
 
-    <!-- Joint Cards -->
-    <div class="max-w-4xl mx-auto space-y-6">
-      <div v-for="joint in joints" :key="joint.id">
-        <UCard>
-          <template #header>
-            <div class="flex items-center justify-between">
-              <span class="font-semibold text-lg">{{ joint.id }}</span>
-              <UBadge :color="joint.type === 'odrive' ? 'primary' : 'success'">
-                {{ joint.type }}
-              </UBadge>
-            </div>
-          </template>
-
-          <div class="space-y-4 p-4">
-            <div class="flex justify-between">
-              <span class="font-medium">Position:</span> 
-              <span>{{ joint.position.toFixed(4) }} turns</span>
-            </div>
-            <div class="flex justify-between items-center">
-              <span class="font-medium">Running:</span>
-              <UBadge :color="joint.running ? 'success' : 'neutral'">
-                {{ joint.running ? 'Yes' : 'No' }}
-              </UBadge>
-            </div>
-            <div class="flex space-x-2">
-              <div class="flex-1">
-
-              <UFormField label="Position">
-                <USlider
-                  v-model="joint.position"
-                  type="number"
-                  :min="0"
-                  :max="100"
-                />
-              </UFormField>
-            </div>
-            <UFormField label="Velocity">
-                <UInput
-                  v-model="joint.velocity"
-                  type="number"
-                  step="0.1"
-                  label="Velocity"
-                  class="w-24"
-                />
-              </UFormField>
-              <UFormField label="Accel">
-                <UInput
-                  v-model="joint.accel"
-                  type="number"
-                  step="0.1"
-                  label="Accel"
-                  class="w-24"
-                />
-              </UFormField>
-              <UFormField label="Hold">
-                <UCheckbox
-                  v-model="joint.hold"
-                  label="Hold"
-                />
-              </UFormField>
-            <UButton @click="move(joint)">Move</UButton>
-            </div>
-          </div>
-
-          <template #footer>
-            <div class="flex justify-end p-4 pt-0 space-x-2">
-              <UButton @click="stop(joint)" variant="outline">Stop</UButton>
-              <UButton color="warning" @click="calibrate(joint)">Calibrate</UButton>
-              <UButton color="warning" @click="configure(joint)">Configure</UButton>
-            </div>
-          </template>
-        </UCard>
+        <div class="flex items-center gap-3">
+          <USwitch v-model="recording" />
+          <span class="text-sm text-gray-500">Record run</span>
+          <span v-if="currentRunId" class="text-xs px-2 py-1 rounded bg-gray-100">run_id: {{ currentRunId }}</span>
+          <UButton v-if="!currentRunId && recording" size="xs" @click="startRun">Start</UButton>
+          <UButton v-if="currentRunId && recording" size="xs" color="error" variant="soft" @click="stopRun">Stop
+          </UButton>
+        </div>
       </div>
     </div>
 
-    <!-- CAN Bus Logs -->
-    <div class="max-w-4xl mx-auto mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-      <!-- ODrive bus -->
-      <UCard>
-        <template #header>can0 (ODrive) Log</template>
-        <div class="p-2 h-40 overflow-auto font-mono text-xs bg-gray-50">
-          <div
-            v-for="(e, i) in canLog.odrive"
-            :key="`odrive-${i}`"
-          >
-            {{ e.ts.toFixed(3) }} → {{ e.id }} : {{ e.data }}
-          </div>
-        </div>
-        <template #footer>
-          <div class="flex justify-end p-4 pt-0 space-x-2">
-            <UButton @click="stopCanLog('odrive')" variant="outline">
-              Stop
-            </UButton>
-            <UButton color="warning" @click="startCanLog('odrive')">
-              Start
-            </UButton>
+    <!-- Joint Cards -->
+    <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+      <UCard v-for="joint in joints" :key="joint.id" class="overflow-hidden">
+        <template #header>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="font-semibold text-lg">{{ joint.id }}</span>
+              <UBadge :color="joint.type === 'odrive' ? 'primary' : 'secondary'">{{ joint.type }}</UBadge>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-gray-500">{{ joint.online ? 'online' : 'offline' }}</span>
+              <span
+                :class="['inline-block h-2.5 w-2.5 rounded-full', joint.online ? 'bg-emerald-500' : 'bg-gray-300']" />
+            </div>
           </div>
         </template>
-      </UCard>
 
-      <!-- Moteus bus -->
-      <UCard>
-        <template #header>can1 (Moteus) Log</template>
-        <div class="p-2 h-40 overflow-auto font-mono text-xs bg-gray-50">
-          <div
-            v-for="(e, i) in canLog.moteus"
-            :key="`moteus-${i}`"
-          >
-            {{ e.ts.toFixed(3) }} → {{ e.id }} : {{ e.data }}
+        <div class="space-y-4">
+          <!-- Live telemetry quick stats -->
+          <div class="grid grid-cols-3 gap-4 text-sm">
+            <div class="p-3 rounded border bg-white">
+              <div class="text-gray-500">Position</div>
+              <div class="font-semibold">{{ formatNum(joint.last.position) }} turns</div>
+            </div>
+            <div class="p-3 rounded border bg-white">
+              <div class="text-gray-500">Velocity</div>
+              <div class="font-semibold">{{ formatNum(joint.last.velocity) }} rev/s</div>
+            </div>
+            <div class="p-3 rounded border bg-white">
+              <div class="text-gray-500">Supply</div>
+              <div class="font-semibold">{{ formatNum(joint.last.supply_v) }} V</div>
+            </div>
+          </div>
+
+          <!-- Sparklines -->
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <div class="flex items-center justify-between mb-2 text-xs text-gray-500">
+                <span>Position (10s)</span>
+                <span v-if="joint.live.length">{{ formatNum(joint.live[joint.live.length - 1]?.position) }} turns</span>
+              </div>
+              <SparkLine :points="joint.live" y-key="position" />
+            </div>
+            <div>
+              <div class="flex items-center justify-between mb-2 text-xs text-gray-500">
+                <span>Velocity (10s)</span>
+                <span v-if="joint.live.length">{{ formatNum(joint.live[joint.live.length - 1]?.velocity) }} rev/s</span>
+              </div>
+              <SparkLine :points="joint.live" y-key="velocity" />
+            </div>
+          </div>
+
+          <!-- Command controls -->
+          <div class="flex flex-col gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <UFormField label="Position (turns)">
+                <UInput v-model.number="joint.cmd.position" type="number" step="0.001" />
+              </UFormField>
+              <UFormField label="Velocity (rev/s)">
+                <UInput v-model.number="joint.cmd.velocity" type="number" step="0.01" placeholder="auto" />
+              </UFormField>
+              <UFormField label="Accel (rev/s²)">
+                <UInput v-model.number="joint.cmd.accel" type="number" step="0.01" placeholder="auto" />
+              </UFormField>
+              <UFormField label="Hold">
+                <div class="h-10 flex items-center">
+                  <UCheckbox v-model="joint.cmd.hold" />
+                </div>
+              </UFormField>
+            </div>
+
+            <div class="flex items-center gap-3">
+              <UButton :disabled="!joint.online || sending[joint.id]" @click="sendMove(joint)">
+                <UIcon name="i-heroicons-play" class="mr-1" /> Move
+              </UButton>
+              <UButton variant="outline" color="neutral" :disabled="sending[joint.id]" @click="stopJointJointsJointNameStopPost({ path: { joint_name: joint.id } })">
+                <UIcon name="i-heroicons-stop" class="mr-1" /> Stop
+              </UButton>
+              <UButton variant="ghost" color="warning" @click="calibrateJointJointsJointNameCalibratePost({ path: { joint_name: joint.id } })">Calibrate</UButton>
+              <UModal title="Configure Joint Values">
+                <UButton variant="ghost" color="info" >Configure</UButton>
+
+                <template #body>
+                  <JointConfiguration :joint-name="joint.id" />
+                </template>
+              </UModal>
+              <div class="text-xs text-gray-500 ml-auto" v-if="joint.lastCmd">
+                last cmd: <span class="font-mono">{{ joint.lastCmd.cmd_id }}</span>
+                <UBadge v-if="joint.lastCmd.accepted === false" color="error" class="ml-2">rejected</UBadge>
+                <UBadge v-else-if="joint.lastCmd.done" color="success" class="ml-2">done</UBadge>
+                <UBadge v-else color="info" class="ml-2">sent</UBadge>
+              </div>
+            </div>
           </div>
         </div>
+
         <template #footer>
-          <div class="flex justify-end p-4 pt-0 space-x-2">
-            <UButton @click="stopCanLog('moteus')" variant="outline">
-              Stop
-            </UButton>
-            <UButton color="warning" @click="startCanLog('moteus')">
-              Start
-            </UButton>
+          <div class="text-xs text-gray-400 flex items-center justify-between">
+            <div>WS: <span
+                :class="['inline-block h-2 w-2 rounded-full mr-1', joint.ws && joint.ws.readyState === 1 ? 'bg-emerald-500' : 'bg-gray-300']" />
+              {{ wsLabel(joint.ws) }}</div>
+            <div v-if="joint.last.ts">Last update: {{ new Date(joint.last.ts).toLocaleTimeString() }}</div>
           </div>
         </template>
       </UCard>
@@ -133,129 +129,198 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted, onBeforeUnmount, reactive, ref } from 'vue'
 import { client as apiClient } from '~/client/client.gen'
-import * as api from '~/client/sdk.gen'
+import {
+  listJointsJointsIndexGet,
+  moveJointJointsJointNameMovePost,
+  stopJointJointsJointNameStopPost,
+  calibrateJointJointsJointNameCalibratePost,
+  armAllJointsArmAllPost,
+  disarmAllJointsDisarmAllPost,
+  startRun as startRunApi,
+  stopRun as stopRunApi,
+} from '~/client/sdk.gen'
+
 
 apiClient.setConfig({ baseUrl: '/api' })
 
-interface JointInfo {
+// --- Types ---
+interface JointDto { id: string; type: 'odrive' | 'moteus'; initialized?: boolean }
+
+interface LivePoint {
+  ts: number
+  position: number | null
+  velocity: number | null
+  supply_v?: number | null
+}
+
+interface JointState {
   id: string
   type: 'odrive' | 'moteus'
-  initialized: boolean
-  position: number
-  velocity: number
-  accel: number
-  hold: boolean
-  running: boolean
-  ws?: WebSocket
+  online: boolean
+  ws?: WebSocket | null
+  live: LivePoint[]
+  last: { ts: number | null; position: number | null; velocity: number | null; supply_v: number | null }
+  cmd: { position: number | null; velocity?: number | null; accel?: number | null; hold: boolean }
+  lastCmd: { cmd_id: string; accepted: boolean | null; done?: boolean } | null
 }
 
-interface CanEntry { ts: number; id: string; data: string }
+// WebSocket message payloads (as emitted by your backend)
+type TelemetryMsg = {
+  type: 'telemetry'
+  ts?: string
+  position?: number
+  velocity?: number
+  supply_v?: number
+}
+type StatusMsg = { type: 'status'; online?: boolean }
+type PingMsg = { type: 'ping' }
+type CmdAckMsg = { type: 'cmd_ack'; cmd_id: string; accepted?: boolean }
+type CmdDoneMsg = { type: 'cmd_done'; cmd_id: string }
+type JointWsMsg = TelemetryMsg | StatusMsg | PingMsg | CmdAckMsg | CmdDoneMsg
 
-const joints = ref<JointInfo[]>([])
-const canLog = reactive({
-  odrive: [] as CanEntry[],
-  moteus: [] as CanEntry[],
-})
+// --- State ---
+const joints = ref<JointState[]>([])
+const sending = reactive<Record<string, boolean>>({})
+const recording = ref(false)
+const currentRunId = ref<number | null>(null)
+const LIVE_MS = 10_000
 
-let wsLog: Record<'odrive'|'moteus', WebSocket|undefined> = {
-  odrive: undefined,
-  moteus: undefined,
+// --- UI helpers ---
+function formatNum(v: number | null | undefined, digits = 4) {
+  if (v === null || v === undefined || Number.isNaN(v)) return '—'
+  return Number(v).toFixed(digits)
+}
+function wsLabel(ws?: WebSocket | null) {
+  if (!ws) return 'disconnected'
+  switch (ws.readyState) {
+    case WebSocket.CONNECTING: return 'connecting'
+    case WebSocket.OPEN: return 'open'
+    case WebSocket.CLOSING: return 'closing'
+    case WebSocket.CLOSED: return 'closed'
+    default: return 'unknown'
+  }
 }
 
-// Fetch joint list and kick off their WS streams (OpenAPI client)
+// --- Data loading ---
 async function loadJoints() {
-  const res = await api.listJointsJointsIndexGet()
-  const list = res.data ?? []
+  const res = await listJointsJointsIndexGet()
+  const list = (res?.data ?? []) as JointDto[]
 
-  joints.value = list.map(j => ({
-    // j has { id, type, initialized } from your FastAPI endpoint
-    ...(j as { id: string; type: 'odrive'|'moteus'; initialized: boolean }),
-    position: 0,
-    velocity: 0,
-    accel: 0,
-    hold: true,
-    running: false,
-    ws: undefined,
+  joints.value = list.map((j) => ({
+    id: j.id,
+    type: j.type,
+    online: false,
+    ws: null,
+    live: [],
+    last: { ts: null, position: null, velocity: null, supply_v: null },
+    cmd: { position: 0, velocity: null, accel: null, hold: true },
+    lastCmd: null,
   }))
 
-  // const host = window.location.hostname || '127.0.0.1'
-  // // open one WS per joint
-  // joints.value.forEach(j => {
-  //   const socket = new WebSocket(`ws://${host}:8000/ws/joint/${j.id}`)
-  //   socket.onmessage = ev => {
-  //     const d = JSON.parse(ev.data)
-  //     j.position = d.position ?? j.position
-  //     j.running  = d.running
-  //   }
-  //   j.ws = socket
-  // })
+  joints.value.forEach(openWs)
 }
 
-// Global arm/disarm
-async function armAll() {
-  const r = await api.armAllJointsArmAllPost()
-  console.log('Arm All:', r.data)
-}
-async function disarmAll() {
-  const r = await api.disarmAllJointsDisarmAllPost()
-  console.log('Disarm All:', r.data)
-}
+function openWs(joint: JointState) {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws'
+  const url = `${proto}://${location.hostname}:8000/ws/joint/${joint.id}`
+  const ws = new WebSocket(url)
+  joint.ws = ws
 
-// Per-joint actions
-async function move(j: JointInfo) {
-  await api.moveJointJointsJointNameMovePost({
-    path: { joint_name: j.id },
-    query: {
-      position: j.position,
-      // Pass optional params only if you want them considered; else omit.
-      // If 0 has meaning for you, keep as-is; otherwise gate with undefined.
-      velocity: j.velocity,
-      accel: j.accel,
-      hold: j.hold,
-    },
-  })
-}
+  ws.onmessage = (ev) => {
+    const msg = JSON.parse(ev.data) as JointWsMsg
 
-async function stop(j: JointInfo) {
-  await api.stopJointJointsJointNameStopPost({ path: { joint_name: j.id } })
-  j.running = false
-}
+    if (msg.type === 'telemetry') {
+      joint.online = true
+      const ts = msg.ts ? Date.parse(msg.ts) : Date.now()
+      const p: LivePoint = {
+        ts,
+        position: msg.position ?? null,
+        velocity: msg.velocity ?? null,
+        supply_v: msg.supply_v ?? null,
+      }
+      joint.live.push(p)
+      joint.last = { ts, position: p.position, velocity: p.velocity, supply_v: p.supply_v ?? null }
+      const cutoff = Date.now() - LIVE_MS
+      while (joint.live.length && joint.live[0].ts < cutoff) joint.live.shift()
+      return
+    }
 
-async function calibrate(j: JointInfo) {
-  await api.calibrateJointJointsJointNameCalibratePost({ path: { joint_name: j.id } })
-}
+    if (msg.type === 'status') {
+      joint.online = !!msg.online
+      return
+    }
 
-async function configure(j: JointInfo) {
-  await api.configureJointJointsJointNameConfigurePost({ path: { joint_name: j.id } })
-}
+    if (msg.type === 'ping') {
+      if (joint.ws && joint.ws.readyState === WebSocket.OPEN) joint.online = true
+      return
+    }
 
-// CAN log start/stop (WebSockets not part of OpenAPI; keep as-is)
-function startCanLog(bus: 'odrive'|'moteus') {
-  const host = window.location.hostname || '127.0.0.1'
-  if (wsLog[bus]) return
-  const socket = new WebSocket(`ws://${host}:8000/ws/canlog/${bus}`)
-  socket.onmessage = ev => {
-    const entry: CanEntry = JSON.parse(ev.data)
-    canLog[bus].unshift(entry)
-    if (canLog[bus].length > 200) canLog[bus].pop()
+    if (msg.type === 'cmd_ack') {
+      joint.lastCmd = { cmd_id: msg.cmd_id, accepted: !!msg.accepted }
+      return
+    }
+
+    if (msg.type === 'cmd_done') {
+      if (joint.lastCmd && joint.lastCmd.cmd_id === msg.cmd_id) joint.lastCmd.done = true
+      return
+    }
   }
-  wsLog[bus] = socket
+  ws.onopen = () => { /* optimistic: status will arrive */ }
+  ws.onclose = () => { joint.ws = null; joint.online = false; setTimeout(() => openWs(joint), 1500) }
 }
 
-function stopCanLog(bus: 'odrive'|'moteus') {
-  wsLog[bus]?.close()
-  wsLog[bus] = undefined
+// --- Commands ---
+async function sendMove(j: JointState) {
+  if (sending[j.id]) return
+  sending[j.id] = true
+  try {
+    const r = (await moveJointJointsJointNameMovePost({
+      path: { joint_name: j.id },
+      query: {
+      position: j.cmd.position,
+      velocity: j.cmd.velocity ?? undefined,
+      accel: j.cmd.accel ?? undefined,
+      hold: j.cmd.hold,
+      run_id: currentRunId.value ?? undefined,
+    },
+    }))
+
+    const cmdId = r.data?.cmd_id
+    if (cmdId) {
+      j.lastCmd = { cmd_id: cmdId, accepted: true }
+    }
+  } catch (e) {
+    console.error('Move failed', e)
+    j.lastCmd = { cmd_id: 'n/a', accepted: false }
+  } finally {
+    sending[j.id] = false
+  }
 }
 
-// Lifecycle
-onMounted(() => {
-  loadJoints()
-  // startCanLog('odrive')
-})
+async function startRun() {
+  try {
+    const r = (await startRunApi({}))
+    currentRunId.value = r?.data?.run_id ?? null
+    recording.value = currentRunId.value !== null
+  } catch (e) {
+    console.error(e)
+    recording.value = false
+  }
+}
+async function stopRun() {
+  if (!currentRunId.value) { recording.value = false; return }
+  try {
+    await stopRunApi({ path: { run_id: currentRunId.value } })
+  } catch (e) {
+    console.error(e)
+  }
+  currentRunId.value = null
+  recording.value = false
+}
 
-onUnmounted(() => {
-  joints.value.forEach(j => j.ws?.close())
-  // stopCanLog('odrive')
-})
+// --- lifecycle ---
+onMounted(() => { loadJoints() })
+onBeforeUnmount(() => { joints.value.forEach(j => j.ws?.close()) })
 </script>
