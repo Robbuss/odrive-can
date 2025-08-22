@@ -1,13 +1,13 @@
 <template>
-    <div class="space-y-4">
+    <div class="space-y-4" v-if="jointConfiguration">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <UFormField label="Position min (turns)">
-                <UInput v-model.number="jointConfiguration.pos_min" type="number" inputmode="decimal" step="0.001"
+                <UInput v-model.number="jointConfiguration.min_pos" type="number" inputmode="decimal" step="0.001"
                     placeholder="e.g. -10.0" />
             </UFormField>
 
             <UFormField label="Position max (turns)">
-                <UInput v-model.number="jointConfiguration.pos_max" type="number" inputmode="decimal" step="0.001"
+                <UInput v-model.number="jointConfiguration.max_pos" type="number" inputmode="decimal" step="0.001"
                     placeholder="e.g. 10.0" />
             </UFormField>
         </div>
@@ -34,8 +34,11 @@
 
         <!-- Tiny validity hint -->
         <div v-if="invalidRange" class="text-xs text-amber-600">
-            pos_min should be ≤ pos_max.
+            min_pos should be ≤ max_pos.
         </div>
+    </div>
+    <div v-else>
+        <UProgress indeterminate />
     </div>
 </template>
 
@@ -56,8 +59,8 @@ const { data: jointConfiguration } = await statusJointJointsJointNameStatusGet({
 })
 
 const invalidRange = computed(() => {
-    const min = jointConfiguration?.pos_min
-    const max = jointConfiguration?.pos_max
+    const min = jointConfiguration?.min_pos
+    const max = jointConfiguration?.max_pos
     return min != null && max != null && min > max
 })
 
@@ -66,8 +69,8 @@ async function saveConfiguration() {
         kp: jointConfiguration?.kp,
         ki: jointConfiguration?.ki,
         kd: jointConfiguration?.kd,
-        min_pos: jointConfiguration?.pos_min,
-        max_pos: jointConfiguration?.pos_max,
+        min_pos: jointConfiguration?.min_pos,
+        max_pos: jointConfiguration?.max_pos,
     } })
 }
 </script>

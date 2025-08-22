@@ -17,18 +17,28 @@ class MoteusJoint(Joint):
     def __init__(self, node_id: int = 0):
         super().__init__()
         qr = moteus.QueryResolution()
-        qr.mode     = moteus.INT8
-        qr.position = moteus.F32
-        qr.velocity = moteus.F32
-        qr.voltage = moteus.F32
-        qr.trajectory_complete = moteus.INT8
-        qr.fault = moteus.INT8
+        # Fast path registers (all read in a single .query())
+        qr.mode                 = moteus.INT8
+        qr.position             = moteus.F32
+        qr.velocity             = moteus.F32
+        qr.voltage              = moteus.F32
+        qr.trajectory_complete  = moteus.INT8
+        qr.fault                = moteus.INT8
+
+        # >>> NEW: extra fields to fill DB/WS cleanly
+        qr.torque               = moteus.F32               # Nm
+        qr.motor_temperature    = moteus.F32               # °C
+        qr.temperature          = moteus.F32               # controller °C
+        # (driver faults already available via registers if you want)
+        # qr.driver_fault1      = moteus.INT16
+        # qr.driver_fault2      = moteus.INT16
+
         self.node_id = node_id
         self._ctrl = moteus.Controller(id=node_id, query_resolution=qr)
         self._running = False
         self._last_status_warn = 0.0  # rate-limit log
 
-        # NEW: serialize hardware access + track active command
+        # serialize hardware access + track active command
         self._lock = asyncio.Lock()
         self._current_cmd: Optional[dict] = None  # {"cmd_id", "target", "run_id"}
 
@@ -56,8 +66,8 @@ class MoteusJoint(Joint):
         print(f"Moving joint {self.node_id} to position {position}, velocity {velocity}, accel {accel}, hold {hold}")
         async with self._lock:
             # 1) Stop any prior motion briefly
-            # await self._ctrl.set_stop()
-            # await asyncio.sleep(0.02)
+            await self._ctrl.set_stop()
+            await asyncio.sleep(0.02)
 
             # 2) Resynchronize capture
             await self._ctrl.set_recapture_position_velocity()
@@ -70,24 +80,25 @@ class MoteusJoint(Joint):
             alim = accel if accel is not None else 1.0
             max_torque = float(os.getenv("MOTEUS_MAX_TORQUE", "3.5"))  # tune if needed
 
-            print(f"Setting position to {position}, velocity {velocity}, accel {accel}, hold {hold}")
-
             # 4) Fire-and-forget position command (NO wait_complete)
-            await self._ctrl.set_position_wait_complete(
+            await self._ctrl.set_position(
                 position=position,
-                velocity=math.nan, # control the motor by velocity_limit instead of giving it a velocity (it will keep spinning after the move if we use veloicty instead of velocity_limit) 
+                velocity=0.0,                 # stop at target
                 velocity_limit=vlim,
                 accel_limit=alim,
-                maximum_torque=math.nan, #max_torque,
+                maximum_torque=max_torque,
                 feedforward_torque=math.nan,
-                query=True,
+                watchdog_timeout=0.5,
+                query=False,
             )
             self._running = True
 
-            # Track active command for done-detection in sampler
+            # >>> include velocity/accel/run_id so sampler can mirror target_* into rows
             self._current_cmd = {
                 "cmd_id": cmd_id,
                 "target": position,
+                "velocity": velocity,
+                "accel": accel,
                 "run_id": run_id,
                 "hold": hold,
             }
@@ -246,7 +257,8 @@ class MoteusJoint(Joint):
             "persisted": bool(persist),  
         }
 
-    async def status(self, *, include_control: bool = False) -> dict:
+    async def status(self, include_control: bool = False) -> dict:
+        """Fast status for the hot path (WS/DB). No diagnostic reads by default."""
         try:
             async with self._lock:
                 st = await self._ctrl.query()
@@ -258,27 +270,66 @@ class MoteusJoint(Joint):
                 self._last_status_warn = now
             raise
 
+        # Turns / rev/s
         pos_raw = vals.get(moteus.Register.POSITION)
         vel_raw = vals.get(moteus.Register.VELOCITY)
         position = (pos_raw / (2 * math.pi)) if pos_raw is not None else None
         velocity = (vel_raw / (2 * math.pi)) if vel_raw is not None else None
 
-        resp = {
-            "position": position,                                  # turns
-            "velocity": velocity,                                  # rev/s
-            "supply_v": vals.get(moteus.Register.VOLTAGE),
+        # Core health
+        voltage         = vals.get(moteus.Register.VOLTAGE)
+        fault           = vals.get(moteus.Register.FAULT) or 0
+        traj_done       = vals.get(moteus.Register.TRAJECTORY_COMPLETE) or 0
+        mode_val        = vals.get(moteus.Register.MODE)
+        torque          = vals.get(moteus.Register.TORQUE)              # Nm
+        motor_temp      = vals.get(moteus.Register.MOTOR_TEMPERATURE)   # °C
+        controller_temp = vals.get(moteus.Register.TEMPERATURE)         # °C
+
+        # Optional driver faults (bitfields)
+        drv1 = vals.get(moteus.Register.DRIVER_FAULT1) or 0
+        drv2 = vals.get(moteus.Register.DRIVER_FAULT2) or 0
+
+        # Map mode to text for DB TEXT column
+        mode_text = None
+        if mode_val is not None:
+            try:
+                mode_text = moteus.Mode(mode_val).name.lower()
+            except Exception:
+                mode_text = str(mode_val)
+
+        out = {
+            "position": position,                 # turns
+            "velocity": velocity,                 # rev/s
+            "supply_v": voltage,                  # V
             "running": self._running,
-            "fault": vals.get(moteus.Register.FAULT),
-            "trajectory_complete": vals.get(moteus.Register.TRAJECTORY_COMPLETE),
+            "fault": int(fault),
+            "trajectory_complete": int(traj_done),
+            "mode": mode_text,                    # TEXT for DB
+            "torque": torque,                     # Nm
+            "motor_temp": motor_temp,             # °C
+            "controller_temp": controller_temp,   # °C
+            "driver_fault1": int(drv1),
+            "driver_fault2": int(drv2),
         }
 
-        if include_control:
-            # cheap due to TTL cache inside get_control_values()
+        if not include_control:
+            return out
+
+        # Slow path: limits, PID via diag stream (on-demand only)
+        try:
+            if not hasattr(self, "_diag_stream") or self._diag_stream is None:
+                self._diag_stream = moteus.Stream(self._ctrl)
+
             pmin, pmax, kp, ki, kd = await self.get_control_values(use_cache=True)
-            resp.update({"pos_min": pmin, "pos_max": pmax, "kp": kp, "ki": ki, "kd": kd})
+            out["min_pos"] = pmin
+            out["max_pos"] = pmax
+            out["kp"] = kp
+            out["ki"] = ki
+            out["kd"] = kd
+        except Exception:
+            pass
 
-        return resp
-
+        return out
     async def disarm(self) -> None:
         """Disarm the motor and shutdown bus."""
         await self.stop()

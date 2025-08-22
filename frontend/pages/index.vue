@@ -145,9 +145,6 @@ import {
 
 apiClient.setConfig({ baseUrl: '/api' })
 
-// --- Types ---
-interface JointDto { id: string; type: 'odrive' | 'moteus'; initialized?: boolean }
-
 interface LivePoint {
   ts: number
   position: number | null
@@ -206,7 +203,7 @@ function wsLabel(ws?: WebSocket | null) {
 // --- Data loading ---
 async function loadJoints() {
   const res = await listJointsJointsIndexGet()
-  const list = (res?.data ?? []) as JointDto[]
+  const list = (res?.data ?? [])
 
   joints.value = list.map((j) => ({
     id: j.id,

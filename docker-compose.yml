@@ -33,7 +33,7 @@ services:
       - dialout
     devices:
       - /dev/serial/by-id/usb-mjbots_fdcanusb_E6F9844A-if00:/dev/serial/by-id/usb-mjbots_fdcanusb_E6F9844A-if00
-      - /dev/ttyACM1:/dev/ttyACM1
+      - /dev/ttyACM0:/dev/ttyACM0
     volumes:
       - ./backend:/app/backend:rw
       - ./alembic.ini:/app/alembic.ini:rw

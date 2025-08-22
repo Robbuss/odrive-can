@@ -10,9 +10,8 @@ import json
 from backend.db import get_session
 from backend.models import RunEvent
 from backend.api.ws_manager import manager
-from typing import Dict
-from typing import Optional
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, ConfigDict, model_validator
+from typing import Dict, Optional, Literal, List, Any
 
 router = APIRouter(prefix="/joints", tags=["joints"])
 
@@ -23,12 +22,17 @@ joints: Dict[str, Joint] = {
     "joint1": MoteusJoint(node_id=1),
 }
 
-class JointConfigureBody(BaseModel):
+class JointConfigFields(BaseModel):
     kp: Optional[float] = None
     ki: Optional[float] = None
     kd: Optional[float] = None
     min_pos: Optional[float] = None  # turns
     max_pos: Optional[float] = None  # turns
+
+    # keep this strict so you notice typos in config keys
+    model_config = ConfigDict(extra='forbid')
+
+class JointConfigureBody(JointConfigFields):
     save_config: Optional[bool] = None  # persist to NVM if True
 
     @model_validator(mode="after")
@@ -41,8 +45,54 @@ class JointConfigureBody(BaseModel):
             raise ValueError("Provide at least one field to change.")
         return self
 
-@router.get("/index", summary="List all configured joints")
-def list_joints():
+class JointStatus(BaseModel):
+    position: Optional[float] = None
+    velocity: Optional[float] = None
+    accel: Optional[float] = None
+    torque: Optional[float] = None
+    supply_v: Optional[float] = None
+    motor_temp: Optional[float] = None
+    controller_temp: Optional[float] = None
+    mode: Optional[Any] = None
+    fault_code: Optional[int] = None
+    error_flags: Optional[Dict[str, Any]] = None
+    target_position: Optional[float] = None
+    target_velocity: Optional[float] = None
+    target_accel: Optional[float] = None
+    target_torque: Optional[float] = None
+    model_config = ConfigDict(extra='allow')
+
+class JointStatusWithConfig(JointStatus, JointConfigFields):
+    # still allow driver-specific extras in the combined response
+    model_config = ConfigDict(extra='allow')
+
+class JointSummary(BaseModel):
+    id: str
+    type: Literal['odrive', 'moteus']
+    initialized: bool
+
+class MoveResponse(BaseModel):
+    ok: bool
+    cmd_id: str
+    # Allow extra keys from specific joint.move(...) implementations
+    model_config = ConfigDict(extra='allow')
+
+class StopResponse(BaseModel):
+    status: Literal['stopped']
+
+
+class ArmDisarmResult(BaseModel):
+    status: Literal['armed', 'disarmed', 'error']
+    detail: Optional[str] = None
+
+class CalibrateResponse(BaseModel):
+    ok: Optional[bool] = None
+    detail: Optional[str] = None
+
+    model_config = ConfigDict(extra='allow')
+
+@router.get("/index", summary="List all configured joints", response_model=List[JointSummary])
+def list_joints() -> List[JointSummary]:
     """
     Return a list of all registered joints and their metadata.
     """
@@ -63,17 +113,17 @@ def list_joints():
     return result
 
 
-@router.post("/{joint_name}/move")
+@router.post("/{joint_name}/move", response_model=MoveResponse)
 async def move_joint(
     joint_name: str,
     position: float,
-    velocity: float = None,
-    accel: float = None,
+    velocity: Optional[float] = None,
+    accel: Optional[float] = None,
     hold: bool = True,
-    run_id: int | None = None,
+    run_id: Optional[int] = None,
     request: Request = None,
     session: AsyncSession = Depends(get_session),
-):
+) -> MoveResponse:
     joint = joints.get(joint_name)
     if not joint:
         raise HTTPException(404, "Unknown joint")
@@ -83,7 +133,7 @@ async def move_joint(
     # Quick readiness probe
     try:
         await joint.status()
-    except Exception as e:
+    except Exception:
         # Tell UI immediately
         await manager.broadcast(joint_name, json.dumps({
             "type": "cmd_ack",
@@ -96,7 +146,6 @@ async def move_joint(
         raise HTTPException(status_code=503, detail="Joint is offline; try again when power/transport is available")
 
     # Only if online: (optionally) log event + enqueue target + ack(true) + send command
-    # Insert a RunEvent ONLY when recording (run_id present); schema has NOT NULL on run_events.run_id
     if run_id is not None:
         evt = RunEvent(
             run_id=run_id,
@@ -139,56 +188,60 @@ async def move_joint(
     }))
 
     result = await joint.move(position, velocity, accel, hold, cmd_id=cmd_id, run_id=run_id)
-    return {"ok": True, "cmd_id": cmd_id, **result}
+    # Preserve existing shape: {"ok": True, "cmd_id": ..., **result}
+    return {"ok": True, "cmd_id": cmd_id, **(result or {})}
 
-@router.post("/{joint_name}/stop")
-async def stop_joint(joint_name: str):
+
+@router.post("/{joint_name}/stop", response_model=StopResponse)
+async def stop_joint(joint_name: str) -> StopResponse:
     joint = joints.get(joint_name)
     if not joint:
         raise HTTPException(404, "Unknown joint")
-    # <<< await here too
     await joint.stop()
     return {"status": "stopped"}
 
-@router.get("/{joint_name}/status")
-async def status_joint(joint_name: str):
+
+@router.get("/{joint_name}/status", response_model=JointStatusWithConfig)
+async def status_joint(joint_name: str) -> JointStatusWithConfig:
     joint = joints.get(joint_name)
     if not joint:
         raise HTTPException(404, "Unknown joint")
     return await joint.status(include_control=True)
 
-@router.post("/arm-all")
-async def arm_all():
-    results = {}
+
+@router.post("/arm-all", response_model=Dict[str, ArmDisarmResult])
+async def arm_all() -> Dict[str, ArmDisarmResult]:
+    results: Dict[str, ArmDisarmResult] = {}
     for name, joint in joints.items():
         try:
             if not getattr(joint, "_initialized", False):
                 joint.initialize()
                 setattr(joint, "_initialized", True)
-            results[name] = {"status": "armed"}
+            results[name] = ArmDisarmResult(status="armed")
         except Exception as e:
-            results[name] = {"status": "error", "detail": str(e)}
+            results[name] = ArmDisarmResult(status="error", detail=str(e))
     return results
 
-@router.post("/disarm-all")
-async def disarm_all():
-    results = {}
+
+@router.post("/disarm-all", response_model=Dict[str, ArmDisarmResult])
+async def disarm_all() -> Dict[str, ArmDisarmResult]:
+    results: Dict[str, ArmDisarmResult] = {}
     for name, joint in joints.items():
         try:
-            # <<< await disarm
             await joint.disarm()
             setattr(joint, "_initialized", False)
-            results[name] = {"status": "disarmed"}
+            results[name] = ArmDisarmResult(status="disarmed")
         except Exception as e:
-            results[name] = {"status": "error", "detail": str(e)}
+            results[name] = ArmDisarmResult(status="error", detail=str(e))
     return results
 
-@router.post("/{joint_name}/calibrate")
+
+@router.post("/{joint_name}/calibrate", response_model=CalibrateResponse)
 async def calibrate_joint(
     joint_name: str,
     state: int = 3,
     save_config: bool = False
-):
+) -> CalibrateResponse:
     joint = joints.get(joint_name)
     if not joint:
         raise HTTPException(404, "Unknown joint")
@@ -198,14 +251,11 @@ async def calibrate_joint(
         setattr(joint, "_initialized", False)
 
     try:
-        # already awaited here in your code
         return await joint.calibrate(state=state, save_config=save_config)
     except Exception as e:
         raise HTTPException(500, str(e))
-
-
-
-@router.post("/{joint_name}/configure", operation_id="configureJoint")
+    
+@router.post("/{joint_name}/configure", operation_id="configureJoint", response_model=dict[Literal['ok'], bool])
 async def configure_joint(joint_name: str, body: JointConfigureBody):
     joint = joints.get(joint_name)
     if not joint:
@@ -215,7 +265,7 @@ async def configure_joint(joint_name: str, body: JointConfigureBody):
     params = body.model_dump(exclude_unset=True)
 
     try:
-        # Your MoteusJoint.configure should accept kp/ki/kd/min_pos/max_pos/save_config
-        return await joint.configure(**params)
+        await joint.configure(**params)
+        return {"ok": True}
     except Exception as e:
         raise HTTPException(500, str(e))
