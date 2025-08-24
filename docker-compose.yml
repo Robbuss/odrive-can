@@ -1,3 +1,5 @@
+name: robot
+
 services:
   db:
     image: timescale/timescaledb:latest-pg16
@@ -85,23 +87,20 @@ services:
       PGADMIN_DEFAULT_PASSWORD: admin123
     volumes:
       - pgadmin-data:/var/lib/pgadmin
-
-  # ARM64-friendly editor container you can attach Cursor/VS Code to
   editor:
-    image: mcr.microsoft.com/devcontainers/python:3.11
+    build:
+      context: .
+      dockerfile: editor/Dockerfile
     container_name: robot_editor
-    depends_on:
-      - backend
-      - db
-    working_dir: /workspace
-    restart: unless-stopped
+    working_dir: /app
+    user: robbus
+    group_add:
+      - "${DOCKER_GID}" 
     volumes:
-      - ./:/workspace:cached
-    # keep it alive for "Dev Containers: Attach to Running Container"
-    command: sleep infinity
-    # If you want to run Docker CLI from the editor container, uncomment:
-    # volumes:
-    #   - /var/run/docker.sock:/var/run/docker.sock
+      - ./:/app:rw
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: bash -lc "echo Ready as $(whoami); sleep infinity"
+    restart: unless-stopped
 
 volumes:
   db-data:

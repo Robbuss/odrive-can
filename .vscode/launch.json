@@ -2,17 +2,12 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Attach: Backend (debugpy 5678)",
-      "type": "python",
+      "name": "Attach: Backend (editor → backend)",
+      "type": "debugpy",
       "request": "attach",
-      "connect": { "host": "127.0.0.1", "port": 5678 },
+      "connect": { "host": "backend", "port": 5678 },
       "justMyCode": true,
-      "pathMappings": [
-        {
-          "localRoot": "${workspaceFolder}/backend",
-          "remoteRoot": "/app/backend"
-        }
-      ]
+      "pathMappings": [{ "localRoot": "/app/backend", "remoteRoot": "/app/backend" }]
     }
   ]
 }

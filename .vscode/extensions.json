@@ -1,0 +1,8 @@
+{
+    "recommendations": [
+        "ms-python.debugpy",
+        "vue.volar",
+        "anysphere.cursorpyright",
+        "ms-python.python"
+    ]
+}

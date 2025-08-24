@@ -1,0 +1,9 @@
+{
+    "name": "robot-editor",
+    "dockerComposeFile": ["../docker-compose.yml"],
+    "service": "editor",
+    "workspaceFolder": "/app",
+    "remoteUser": "robbus",
+    "overrideCommand": false,
+    "shutdownAction": "none"
+  }
