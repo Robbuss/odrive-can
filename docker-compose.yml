@@ -99,6 +99,7 @@ services:
     volumes:
       - ./:/app:rw
       - /var/run/docker.sock:/var/run/docker.sock
+      - ~/.ssh:/home/robbus/.ssh:ro
     command: bash -lc "echo Ready as $(whoami); sleep infinity"
     restart: unless-stopped
 

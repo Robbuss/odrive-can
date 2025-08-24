@@ -11,7 +11,8 @@ RUN set -eux; \
     bash zsh nano sudo git git-lfs ca-certificates curl wget gnupg \
     locales tzdata \
     python3 python3-pip python3-venv python3-dev \
-    build-essential pkg-config tini gosu; \
+    build-essential pkg-config \
+    openssh-client; \  
   echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen; \
   locale-gen en_US.UTF-8; \
   git lfs install --system
