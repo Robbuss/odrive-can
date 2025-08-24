@@ -10,7 +10,9 @@ from backend.api.routers.joints import joints
 from backend.api.ws_manager import manager
 from backend.ingest.telemetry_queue import TelemetryIngestor
 from backend.joints.sampler import run_joint_sampler
+from backend.debugging import enable_debugpy
 
+enable_debugpy()
 app = FastAPI()
 
 app.include_router(joints_router.router)

@@ -27,8 +27,14 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql+asyncpg://robot:robot@db:5432/robot
+      DEBUGPY: "1"
+      DEBUGPY_HOST: "0.0.0.0"
+      DEBUGPY_PORT: "5678"
+      DEBUGPY_WAIT_FOR_CLIENT: "0"
+      DEBUGPY_BREAK_STARTUP: "0"
     ports:
       - "8000:8000"
+      - "5678:5678"
     group_add:
       - dialout
     devices:
@@ -65,6 +71,7 @@ services:
         npx @hey-api/openapi-ts &&
         npm run dev -- -p 3000 --host 0.0.0.0
       "
+
   pgadmin:
     image: dpage/pgadmin4
     container_name: robot_pgadmin
@@ -78,6 +85,23 @@ services:
       PGADMIN_DEFAULT_PASSWORD: admin123
     volumes:
       - pgadmin-data:/var/lib/pgadmin
+
+  # ARM64-friendly editor container you can attach Cursor/VS Code to
+  editor:
+    image: mcr.microsoft.com/devcontainers/python:3.11
+    container_name: robot_editor
+    depends_on:
+      - backend
+      - db
+    working_dir: /workspace
+    restart: unless-stopped
+    volumes:
+      - ./:/workspace:cached
+    # keep it alive for "Dev Containers: Attach to Running Container"
+    command: sleep infinity
+    # If you want to run Docker CLI from the editor container, uncomment:
+    # volumes:
+    #   - /var/run/docker.sock:/var/run/docker.sock
 
 volumes:
   db-data:
